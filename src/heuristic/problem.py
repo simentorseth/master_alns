@@ -5,6 +5,7 @@ class Problem:
     def __init__(
         self,
         file,
+        num_vessels,
         charge_capacity,
         velocity,
         consumption_rate,
@@ -13,6 +14,7 @@ class Problem:
         num_time_windows,
     ) -> None:
         self._instance = self._read_file(file)
+        self._num_vessels = num_vessels
         self._charge_capacity = charge_capacity
         self._velocity = velocity
         self._consumption_rate = consumption_rate
@@ -24,6 +26,14 @@ class Problem:
         self._distances = self._calculate_haversine()
         self._travel_times = self._calculate_travel_times()
         self._time_windows = self._create_time_windows()
+
+    @property
+    def _num_vessels(self) -> int:
+        return self._num_vessels
+
+    @property
+    def num_time_windows(self) -> int:
+        return self._num_time_windows
 
     @property
     def distances(self) -> dict[tuple[int, int], float]:
