@@ -2,12 +2,14 @@ import logging
 from problem import Problem
 
 
-def feasible(routes: list, stations: list, problem: Problem):
+def is_feasible(routes: list, stations: list, problem: Problem):
     separators = [i for i, x in enumerate(routes + [0]) if x == 0]
     idx = 0  # start index for current route
 
     num_tours = len(separators)
     used_time_windows = []
+
+    feasible = True
 
     for i in range(num_tours):
         # get the current route
@@ -27,7 +29,7 @@ def feasible(routes: list, stations: list, problem: Problem):
                 )
                 if charge_levels[i] < 0 or charge_levels[i] > problem.charge_capacity:
                     logging.error(f"Battery capacity exceeded for vessel {i}")
-                    return False
+                    feasible = False
                 current_charge = charge_levels[i]
 
             if num_tours <= problem.num_vessels * problem.num_time_windows:
@@ -61,13 +63,13 @@ def feasible(routes: list, stations: list, problem: Problem):
                     if route_duration <= time_window[1] - time_window[0]:
                         used_time_windows.append(window_index)
                         # TODO: Remove the early return and update a boolean value instead
-                        return True
+                        feasible = True
                 else:
                     logging.error(
                         f"Time window {window_index} violated for vessel {i}. Route duration: {route_duration}, Time window: {time_window}"
                     )
-                    return False
-    return True
+                    feasible = False
+    return feasible
 
 
 def route_distance(route: list[int], problem: Problem):
