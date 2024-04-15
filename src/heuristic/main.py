@@ -12,6 +12,7 @@ def main():
     file = "./src/heuristic/instances/aberdeen_wf.csv"
     problem = Problem(
         file,
+        num_vessels=3,
         charge_capacity=2 * 341,  # kWh
         velocity=5,  # m/s (2.57 m/s <--> 5 knots
         consumption_rate=0.016,  # kWh/m
@@ -21,7 +22,7 @@ def main():
     )
 
     routes = [1, 2, 0, 4, 5, 6, 0, 7, 8, 9, 10]
-    stations = [11, 11, 12]
+    stations = [11, 11, 11]
 
     pprint(feasible(routes, stations, problem))
     # pprint(problem.travel_times)

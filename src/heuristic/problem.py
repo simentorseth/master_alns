@@ -28,7 +28,7 @@ class Problem:
         self._time_windows = self._create_time_windows()
 
     @property
-    def _num_vessels(self) -> int:
+    def num_vessels(self) -> int:
         return self._num_vessels
 
     @property
