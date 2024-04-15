@@ -6,10 +6,10 @@ def feasible(routes: list, stations: list, problem: Problem):
     separators = [i for i, x in enumerate(routes + [0]) if x == 0]
     idx = 0  # start index for current route
 
-    num_vessels = len(separators)
+    num_tours = len(separators)
     used_time_windows = []
 
-    for i in range(num_vessels):
+    for i in range(num_tours):
         # get the current route
         current_route = routes[idx : separators[i]]
         # adjust start index for next iteration
@@ -30,39 +30,43 @@ def feasible(routes: list, stations: list, problem: Problem):
                     return False
                 current_charge = charge_levels[i]
 
-            # check if time windows are met
-            current_time = 0
-            arrival_times = [0] * len(current_route) + [0]
-            for j in range(len(arrival_times)):
-                if j == 0:
-                    arrival_times[j] = (
-                        current_time
-                        + problem.travel_times[stations[i], current_route[j]]
-                    )
-                    current_time = arrival_times[j]
-                elif j == len(current_route):
-                    arrival_times[j] = (
-                        current_time
-                        + problem.travel_times[current_route[j - 1], stations[i]]
-                    )
-                else:
-                    arrival_times[j] = (
-                        current_time
-                        + problem.demands[current_route[j - 1]]
-                        + problem.travel_times[current_route[j - 1], current_route[j]]
-                    )
-                    current_time = arrival_times[j]
+            if num_tours <= problem.num_vessels * problem.num_time_windows:
+                # check if time windows are met
+                current_time = 0
+                arrival_times = [0] * len(current_route) + [0]
+                for j in range(len(arrival_times)):
+                    if j == 0:
+                        arrival_times[j] = (
+                            current_time
+                            + problem.travel_times[stations[i], current_route[j]]
+                        )
+                        current_time = arrival_times[j]
+                    elif j == len(current_route):
+                        arrival_times[j] = (
+                            current_time
+                            + problem.travel_times[current_route[j - 1], stations[i]]
+                        )
+                    else:
+                        arrival_times[j] = (
+                            current_time
+                            + problem.demands[current_route[j - 1]]
+                            + problem.travel_times[
+                                current_route[j - 1], current_route[j]
+                            ]
+                        )
+                        current_time = arrival_times[j]
 
-            route_duration = arrival_times[-1]
-            for window_index, time_window in problem.time_windows.items():
-                if route_duration <= time_window[1] - time_window[0]:
-                    used_time_windows.append(window_index)
-                    return True
-            else:
-                logging.error(
-                    f"Time window {window_index} violated for vessel {i}. Route duration: {route_duration}, Time window: {time_window}"
-                )
-                return False
+                route_duration = arrival_times[-1]
+                for window_index, time_window in problem.time_windows.items():
+                    if route_duration <= time_window[1] - time_window[0]:
+                        used_time_windows.append(window_index)
+                        # TODO: Remove the early return and update a boolean value instead
+                        return True
+                else:
+                    logging.error(
+                        f"Time window {window_index} violated for vessel {i}. Route duration: {route_duration}, Time window: {time_window}"
+                    )
+                    return False
     return True
 
 
