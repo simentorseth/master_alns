@@ -30,11 +30,16 @@ class Problem:
         # self._vessel_cost = vessel_cost
         # self._station_cost = station_cost
         # self._num_time_windows = num_time_windows  # in hours
-        self._node_map = self._create_node_map()
+        self._nodes = self._get_nodes()
+        self._map = self._get_map()
         self._demands = self._get_demands()
         self._distances = self._calculate_haversine()
         self._travel_times = self._calculate_travel_times()
         self._time_windows = self._create_time_windows()
+
+    @property
+    def map(self) -> dict[int, list[int]]:
+        return self._map
 
     @property
     def num_vessels(self) -> int:
@@ -93,8 +98,8 @@ class Problem:
         self._station_cost = value
 
     @property
-    def node_map(self) -> dict[int, tuple[float, float]]:
-        return self._node_map
+    def nodes(self) -> dict[int, tuple[float, float]]:
+        return self._nodes
 
     @property
     def time_windows(self) -> dict[int, list[int]]:
@@ -118,7 +123,7 @@ class Problem:
         return distances
 
     def _calculate_haversine(self) -> dict[tuple[int, int], float]:
-        nodes = {node: coord for node, coord in self._node_map.items()}
+        nodes = {node: coord for node, coord in self._nodes.items()}
         distances = {}
         for i, coord1 in nodes.items():
             for j, coord2 in nodes.items():
@@ -149,7 +154,7 @@ class Problem:
                 demands[int(row[0])] = float(row[-2])
         return demands
 
-    def _create_node_map(self) -> dict[int, tuple[float, float]]:
+    def _get_nodes(self) -> dict[int, tuple[float, float]]:
         node_map = {}
         for row in self._instance:
             if row:
@@ -187,3 +192,16 @@ class Problem:
             lines = file.readlines()
             lines = [line.strip().split(",") for line in lines]
         return lines[1:]  # skip header
+
+    def _get_map(self) -> dict[int, list[int]]:
+        turbines = self._get_locations("Turbine")
+        stations = self._get_locations("Substation")
+        mapping = {"Turbines": [], "Substations": []}
+        for k, v in self._nodes.items():
+            if v in turbines:
+                mapping["Turbines"].append(k)
+            else:
+                mapping["Substations"].append(k)
+        assert len(mapping["Turbines"]) == len(turbines)
+        assert len(mapping["Substations"]) == len(stations)
+        return mapping
