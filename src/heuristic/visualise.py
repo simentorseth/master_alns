@@ -1,5 +1,4 @@
 from problem import Problem
-from pprint import pprint
 import networkx as nx
 import matplotlib.pyplot as plt
 
