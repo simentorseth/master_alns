@@ -129,7 +129,9 @@ class Problem:
 
     def _calculate_travel_times(self) -> dict[tuple[int, int], float]:
         return {
-            (i, j): (self._distances[(i, j)] / self._velocity) / 3600
+            (i, j): round(
+                (self._distances[(i, j)] / self._velocity) / 3600, 3
+            )  # NB: this rounding may be to small
             for i, j in self._distances
         }
 
