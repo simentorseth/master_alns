@@ -15,3 +15,16 @@ Instructions on setting up the project environment:
 1. Clone the repository:
    ```bash
    git clone [repo-link]
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+## Usage
+How to run the scripts and reproduce the results:
+```bash
+python3 ./src/heuristic/main.py
+```
+
+## Dependencies
+- Python 3.9+
+- haversine
