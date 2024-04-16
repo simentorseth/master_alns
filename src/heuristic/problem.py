@@ -5,22 +5,31 @@ class Problem:
     def __init__(
         self,
         file,
-        num_vessels,
-        charge_capacity,
-        velocity,
-        consumption_rate,
-        vessel_cost,
-        station_cost,
-        num_time_windows,
+        # num_vessels,
+        # charge_capacity,
+        # velocity,
+        # consumption_rate,
+        # vessel_cost,
+        # station_cost,
+        # num_time_windows,
     ) -> None:
         self._instance = self._read_file(file)
-        self._num_vessels = num_vessels
-        self._charge_capacity = charge_capacity
-        self._velocity = velocity
-        self._consumption_rate = consumption_rate
-        self._vessel_cost = vessel_cost
-        self._station_cost = station_cost
-        self._num_time_windows = num_time_windows  # in hours
+        (
+            self._num_vessels,
+            self._charge_capacity,
+            self._velocity,
+            self._consumption_rate,
+            self._vessel_cost,
+            self._station_cost,
+            self._num_time_windows,
+        ) = self._get_parameters().values()
+        # self._num_vessels = num_vessels
+        # self._charge_capacity = charge_capacity
+        # self._velocity = velocity
+        # self._consumption_rate = consumption_rate
+        # self._vessel_cost = vessel_cost
+        # self._station_cost = station_cost
+        # self._num_time_windows = num_time_windows  # in hours
         self._node_map = self._create_node_map()
         self._demands = self._get_demands()
         self._distances = self._calculate_haversine()
@@ -149,7 +158,7 @@ class Problem:
 
     def _create_time_windows(self):
         windows = []
-        for i in range(self._num_time_windows):
+        for i in range(int(self._num_time_windows)):
             if i == 0:
                 start = 0.0
             else:
@@ -157,6 +166,18 @@ class Problem:
             end = start + 8
             windows.append([start, end])
         return {i: w for i, w in enumerate(windows)}
+
+    def _get_parameters(self):
+        new_instance = []
+        parameters = {}
+        for row in self._instance:
+            if not row[0].isdigit():
+                parameters[row[0]] = float(row[1])
+            else:
+                new_instance.append(row)
+
+        self._instance = new_instance
+        return parameters
 
     def _read_file(self, file: str) -> list[list[str]]:
         with open(file, "r") as file:
