@@ -1,4 +1,4 @@
-from heuristic.utils import feasible
+from heuristic.utils import is_feasible
 from heuristic.problem import Problem
 
 
