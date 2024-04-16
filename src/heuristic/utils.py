@@ -20,15 +20,39 @@ def is_feasible(routes: list, stations: list, problem: Problem):
         if len(current_route) > 0:
             # check if battery level is within limits
             current_charge = problem.charge_capacity
-            charge_levels = [current_charge] * len(current_route)
-            for j in range(len(current_route) - 1):
-                charge_levels[j] = (
-                    current_charge
-                    - problem.distances[current_route[j], current_route[j + 1]]
-                    * problem.consumption_rate
-                )
-                if charge_levels[i] < 0 or charge_levels[i] > problem.charge_capacity:
-                    logging.error(f"Battery capacity exceeded for vessel {i}")
+            charge_levels = [0] * len(current_route) + [0]
+            for j in range(len(charge_levels)):
+                if j == 0:
+                    charge_levels[j] = round(
+                        (
+                            current_charge
+                            - problem.distances[stations[i], current_route[j]]
+                            * problem.consumption_rate
+                        ),
+                        2,
+                    )
+                elif j == len(current_route):
+                    charge_levels[j] = round(
+                        (
+                            current_charge
+                            - problem.distances[current_route[j - 1], stations[i]]
+                            * problem.consumption_rate
+                        ),
+                        2,
+                    )
+                else:
+                    charge_levels[j] = round(
+                        (
+                            current_charge
+                            - problem.distances[current_route[j - 1], current_route[j]]
+                            * problem.consumption_rate
+                        ),
+                        2,
+                    )
+                if charge_levels[j] < 0 or charge_levels[j] > problem.charge_capacity:
+                    logging.error(
+                        f"Battery capacity exceeded for vessel {i + 1}. Battery level: {charge_levels[j]} kWh"
+                    )
                     feasible = False
                 current_charge = charge_levels[i]
 
@@ -38,23 +62,34 @@ def is_feasible(routes: list, stations: list, problem: Problem):
                 arrival_times = [0] * len(current_route) + [0]
                 for j in range(len(arrival_times)):
                     if j == 0:
-                        arrival_times[j] = (
-                            current_time
-                            + problem.travel_times[stations[i], current_route[j]]
+                        arrival_times[j] = round(
+                            (
+                                current_time
+                                + problem.travel_times[stations[i], current_route[j]]
+                            ),
+                            3,
                         )
                         current_time = arrival_times[j]
                     elif j == len(current_route):
-                        arrival_times[j] = (
-                            current_time
-                            + problem.travel_times[current_route[j - 1], stations[i]]
+                        arrival_times[j] = round(
+                            (
+                                current_time
+                                + problem.travel_times[
+                                    current_route[j - 1], stations[i]
+                                ]
+                            ),
+                            3,
                         )
                     else:
-                        arrival_times[j] = (
-                            current_time
-                            + problem.demands[current_route[j - 1]]
-                            + problem.travel_times[
-                                current_route[j - 1], current_route[j]
-                            ]
+                        arrival_times[j] = round(
+                            (
+                                current_time
+                                + problem.demands[current_route[j - 1]]
+                                + problem.travel_times[
+                                    current_route[j - 1], current_route[j]
+                                ]
+                            ),
+                            3,
                         )
                         current_time = arrival_times[j]
 
@@ -62,21 +97,13 @@ def is_feasible(routes: list, stations: list, problem: Problem):
                 for window_index, time_window in problem.time_windows.items():
                     if route_duration <= time_window[1] - time_window[0]:
                         used_time_windows.append(window_index)
-                        # TODO: Remove the early return and update a boolean value instead
                         feasible = True
-                else:
-                    logging.error(
-                        f"Time window {window_index} violated for vessel {i}. Route duration: {route_duration}, Time window: {time_window}"
-                    )
-                    feasible = False
+                    else:
+                        logging.error(
+                            f"Time window {window_index + 1} violated for vessel {i + 1}. Route duration: {route_duration} hrs, Time window: {time_window}"
+                        )
+                        feasible = False
     return feasible
-
-
-def route_distance(route: list[int], problem: Problem):
-    distance = 0
-    for i in range(len(route) - 1):
-        distance += problem.distances[route[i], route[i + 1]]
-    return distance
 
 
 def cost():
