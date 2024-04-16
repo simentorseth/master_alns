@@ -106,8 +106,8 @@ class Problem:
 
     @DeprecationWarning
     def _calculate_distances(self) -> dict[tuple[int, int], float]:
-        turbines = self._get_locations("turbine")
-        stations = self._get_locations("station")
+        turbines = self._get_locations("Turbine")
+        stations = self._get_locations("Substation")
         nodes = {node: coord for node, coord in enumerate(turbines + stations)}
         distances = {}
         for i, coord1 in nodes.items():
@@ -118,8 +118,6 @@ class Problem:
         return distances
 
     def _calculate_haversine(self) -> dict[tuple[int, int], float]:
-        turbines = self._get_locations("Turbine")
-        stations = self._get_locations("Station")
         nodes = {node: coord for node, coord in self._node_map.items()}
         distances = {}
         for i, coord1 in nodes.items():
@@ -140,8 +138,8 @@ class Problem:
         for row in self._instance:
             if row:
                 if row[-1] == kind:
-                    x, y = float(row[2]), float(row[3])
-                    locations.append((x, y))
+                    longitude, latitude = float(row[3]), float(row[2])
+                    locations.append((longitude, latitude))
         return locations
 
     def _get_demands(self) -> dict[int, float]:
@@ -155,7 +153,10 @@ class Problem:
         node_map = {}
         for row in self._instance:
             if row:
-                node_map[int(row[0]) + 1] = (float(row[2]), float(row[3]))
+                node_map[int(row[0]) + 1] = (
+                    float(row[3]),
+                    float(row[2]),
+                )  # (longitude, latitude)
         return node_map
 
     def _create_time_windows(self):
