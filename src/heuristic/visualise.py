@@ -1,25 +1,23 @@
-from problem import Problem
+from heuristic.problem import Problem
 import networkx as nx
 import matplotlib.pyplot as plt
 
 
-def visualise(problem: Problem, routes: list, stations: list):
-    fig, ax = plt.subplots()
+def visualise(routes: list, stations: list, problem: Problem):
+    fig, ax = plt.subplots(figsize=[9, 7])
     graph = nx.MultiDiGraph()
 
     used_stations = list(set(stations))
     turbines = {
-        k: v
-        for k, v in problem.node_map.items()
-        if v in problem._get_locations("Turbine")
+        k: v for k, v in problem.nodes.items() if v in problem._get_locations("Turbine")
     }
     substations = {
         k: v
-        for k, v in problem.node_map.items()
+        for k, v in problem.nodes.items()
         if v in problem._get_locations("Substation")
     }
 
-    nodes = problem.node_map
+    nodes = problem.nodes
     edges = create_edge_list(routes, stations)
     graph.add_nodes_from(nodes.keys(), pos=nodes)
     graph.add_edges_from(edges)
@@ -74,7 +72,7 @@ def visualise(problem: Problem, routes: list, stations: list):
     )
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
-    ax.set_title(f"Route Visualisation\n{routes}")
+    ax.set_title(f"Route Visualisation\n{routes}\n{stations}")
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     ax.legend(

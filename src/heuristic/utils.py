@@ -1,5 +1,5 @@
+from heuristic.problem import Problem
 import logging
-from problem import Problem
 
 
 def is_feasible(routes: list, stations: list, problem: Problem):
@@ -7,7 +7,7 @@ def is_feasible(routes: list, stations: list, problem: Problem):
     idx = 0  # start index for current route
 
     num_tours = len(separators)
-    used_time_windows = []
+    used_time_windows = {w: [] for w in range(int(problem.num_time_windows))}
 
     feasible = True
 
@@ -22,6 +22,7 @@ def is_feasible(routes: list, stations: list, problem: Problem):
             current_charge = problem.charge_capacity
             charge_levels = [0] * len(current_route) + [0]
             for j in range(len(charge_levels)):
+                # TODO: Add route duration violation check early?
                 if j == 0:
                     charge_levels[j] = round(
                         (
@@ -54,7 +55,8 @@ def is_feasible(routes: list, stations: list, problem: Problem):
                         f"Battery capacity exceeded for vessel {i + 1}. Battery level: {charge_levels[j]} kWh"
                     )
                     feasible = False
-                current_charge = charge_levels[i]
+                    break
+                current_charge = charge_levels[j]
 
             if num_tours <= problem.num_vessels * problem.num_time_windows:
                 # check if time windows are met
@@ -96,13 +98,18 @@ def is_feasible(routes: list, stations: list, problem: Problem):
                 route_duration = arrival_times[-1]
                 for window_index, time_window in problem.time_windows.items():
                     if route_duration <= time_window[1] - time_window[0]:
-                        used_time_windows.append(window_index)
-                        feasible = True
+                        if len(used_time_windows[window_index]) == problem.num_vessels:
+                            continue
+                        else:
+                            used_time_windows[window_index].append(i)
+                            # feasible = True
+                            break  # TODO: Check if this break is correct
                     else:
-                        logging.error(
-                            f"Time window {window_index + 1} violated for vessel {i + 1}. Route duration: {route_duration} hrs, Time window: {time_window}"
-                        )
+                        # logging.error(
+                        #     f"Time window {window_index} violated for tour {i}. Route duration: {route_duration} hrs, Time window: {time_window}"
+                        # )
                         feasible = False
+                        break
     return feasible
 
 
