@@ -1,12 +1,19 @@
 from copy import copy
 from random import random
 from itertools import accumulate, dropwhile
+from heuristic.problem import Problem
+from heuristic.utils import cost, is_feasible
 
 
 class Alns:
     def __init__(
-        self, problem, operators, initial_solution, max_iterations, max_no_improv
-    ):
+        self,
+        problem: Problem,
+        operators: list[function],
+        initial_solution: ...,
+        max_iterations: int,
+        max_no_improv: int,
+    ) -> None:
         self.problem = problem
         self.operators = operators
         self.initial_solution = initial_solution
@@ -14,14 +21,17 @@ class Alns:
         self.max_no_improv = max_no_improv
         self._current = None
         self._best = None
+        self._best_cost = 0
+        self._current_cost = 0
         self._weights = [0.5 for _ in range(len(self.operators))]
-        self._probability = 0
+        self._probability = self.update_probability()
         self._r = 0.5  # predifined value to balance earlier weights
         self.scores = []
 
-    def update_scores(self, operator, cost): ...
+    def update_scores(self, operator: function, cost: int) -> None:
+        raise NotImplementedError
 
-    def update_weights(self, num_used_operators):
+    def update_weights(self, num_used_operators: int) -> None:
         ratios = [0 for _ in range(len(self.operators))]
         for i in range(len(self.operators)):
             if num_used_operators[i] == 0:
@@ -33,20 +43,20 @@ class Alns:
             for w, ratio in zip(self._weights, ratios)
         ]
 
-    def update_probability(self):
+    def update_probability(self) -> None:
         self._probability = accumulate(
             [weight / sum(self._weights) for weight in self._weights]
         )
 
-    def update_best(self):
+    def update_best(self) -> None:
         raise NotImplementedError
 
-    def search(self):
+    def search(self) -> None:
         self._current, self._best = copy(self.initial_solution)
-        current_cost = cost(self._current)
+        self._current_cost = cost(self._current)
         it_since_best = 0
         num_used_operators = [0 for _ in range(len(self.operators))]
-        explored = {self._current: current_cost}
+        explored = {self._current: self._current_cost}
 
         for i in range(self.max_iterations):
             if it_since_best > self.max_no_improv:
@@ -77,11 +87,11 @@ class Alns:
             self.reset_scores()
             num_used_operators = [0 for _ in range(len(self.operators))]
 
-    def reset_scores(self):
+    def reset_scores(self) -> None:
         self._scores = [0 for _ in range(len(self.operators))]
 
-    def select_operator(self, weights):
+    def select_operator(self, weights: list[float]) -> function:
         raise NotImplementedError
 
-    def get_best(self):
+    def get_best(self) -> ...:
         return self._best
