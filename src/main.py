@@ -1,4 +1,4 @@
-from heuristic.utils import is_feasible
+from heuristic.utils import is_feasible, cost
 from heuristic.problem import Problem
 from heuristic.visualise import visualise
 from pprint import pprint
@@ -17,7 +17,7 @@ def random_solution(problem: Problem) -> tuple[list[int], list[int]]:
         routes += tour + [0]
     num_tours = len([i for i, x in enumerate(routes) if x == 0])
     stations = [
-        problem.map["Substations"][randint(1, len(problem.map["Substations"]) - 1)]
+        problem.map["Substations"][randint(0, len(problem.map["Substations"]) - 1)]
         for _ in range(num_tours)
     ]
     try:
@@ -51,27 +51,31 @@ def main():
         # station_cost=1000,
         # num_time_windows=3,
     )
-    # route = [1, 8, 2, 0, 3, 5, 9, 0, 7, 4, 6, 10]
-    # stations = [11, 12, 11]
-
-    # pprint(
-    #     is_feasible(
-    #         [1, 2, 3, 0, 4, 5, 6, 0, 7, 8, 9, 10],
-    #         [11, 11, 11],
-    #         problem,
-    #     )
-    # )
-    num_solutions = 1000000
+    # routes = [7, 8, 4, 0, 10, 0, 6, 3, 5, 0, 9, 2, 0, 1]
+    # stations = [12, 12, 12, 12, 12]
+    # t = {0: [1, 2, 0], 1: [1, 3, 1], 2: [0, 1, 2]}
+    num_solutions = 1000
     count = 0
     for _ in range(num_solutions):
         routes, stations = random_solution(problem)
         if routes and stations:
+            problem.time_window_assignments = {
+                w: [] for w in range(int(problem.num_time_windows))
+            }
             if is_feasible(routes, stations, problem):
+                print(routes)
+                print(stations)
+                pprint(problem.time_window_assignments)
+                print(cost(stations, problem))
+                print("\n")
                 count += 1
                 if num_solutions <= 10:
-                    ...
                     # visualise(routes, stations, problem)
+                    ...
     print(f"Feasible solutions: {count}/{num_solutions} | {count/num_solutions:.2%}%")
+
+    # assert is_feasible(routes, stations, problem) == True
+    # assert t == problem.time_window_assignments
 
 
 if __name__ == "__main__":

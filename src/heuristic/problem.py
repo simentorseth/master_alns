@@ -23,19 +23,15 @@ class Problem:
             self._station_cost,
             self._num_time_windows,
         ) = self._get_parameters().values()
-        # self._num_vessels = num_vessels
-        # self._charge_capacity = charge_capacity
-        # self._velocity = velocity
-        # self._consumption_rate = consumption_rate
-        # self._vessel_cost = vessel_cost
-        # self._station_cost = station_cost
-        # self._num_time_windows = num_time_windows  # in hours
         self._nodes = self._get_nodes()
         self._map = self._get_map()
         self._demands = self._get_demands()
         self._distances = self._calculate_haversine()
         self._travel_times = self._calculate_travel_times()
         self._time_windows = self._create_time_windows()
+        self._time_window_assignments = {
+            w: [] for w in range(int(self._num_time_windows))
+        }
 
     @property
     def map(self) -> dict[int, list[int]]:
@@ -108,6 +104,20 @@ class Problem:
     @property
     def demands(self) -> dict[int, float]:
         return self._demands
+
+    @property
+    def time_window_assignments(self) -> dict[int, int]:
+        return self._time_window_assignments
+
+    @time_window_assignments.setter
+    def time_window_assignments(self, assignment: dict[int, list[int]]) -> None:
+        self._time_window_assignments = assignment
+
+    def assign_time_window(self, idx: int, tour: int) -> None:
+        if idx in self._time_window_assignments:
+            self._time_window_assignments[idx].append(tour)
+        else:
+            self._time_window_assignments[idx] = [tour]
 
     @DeprecationWarning
     def _calculate_distances(self) -> dict[tuple[int, int], float]:

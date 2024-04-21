@@ -7,7 +7,7 @@ def is_feasible(routes: list, stations: list, problem: Problem):
     idx = 0  # start index for current route
 
     num_tours = len(separators)
-    used_time_windows = {w: [] for w in range(int(problem.num_time_windows))}
+    # used_time_windows = {w: [] for w in range(int(problem.num_time_windows))}
 
     feasible = True
 
@@ -98,10 +98,15 @@ def is_feasible(routes: list, stations: list, problem: Problem):
                 route_duration = arrival_times[-1]
                 for window_index, time_window in problem.time_windows.items():
                     if route_duration <= time_window[1] - time_window[0]:
-                        if len(used_time_windows[window_index]) == problem.num_vessels:
+                        # skip if all vessels are already assigned to this time window
+                        if (
+                            len(problem.time_window_assignments[window_index])
+                            == problem.num_vessels
+                        ):
                             continue
                         else:
-                            used_time_windows[window_index].append(i)
+                            problem.assign_time_window(window_index, i)
+                            # used_time_windows[window_index].append(i)
                             # feasible = True
                             break  # TODO: Check if this break is correct
                     else:
@@ -113,5 +118,8 @@ def is_feasible(routes: list, stations: list, problem: Problem):
     return feasible
 
 
-def cost():
-    raise NotImplementedError
+def cost(stations: list[int], problem: Problem):
+    window = problem.time_window_assignments[0]
+    num_vessels = len(window)
+    num_stations = len(set(stations))
+    return num_vessels * problem.vessel_cost + num_stations * problem.station_cost
