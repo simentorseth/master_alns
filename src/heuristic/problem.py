@@ -5,13 +5,6 @@ class Problem:
     def __init__(
         self,
         file,
-        # num_vessels,
-        # charge_capacity,
-        # velocity,
-        # consumption_rate,
-        # vessel_cost,
-        # station_cost,
-        # num_time_windows,
     ) -> None:
         self._instance = self._read_file(file)
         (
