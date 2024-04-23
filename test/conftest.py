@@ -3,7 +3,7 @@ import pytest
 from heuristic.problem import Problem
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def test_problem():
     filename = "./src/instances/instance_testing.csv"
     problem = Problem(filename)
