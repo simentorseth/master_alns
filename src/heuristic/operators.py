@@ -17,14 +17,24 @@ def shuffle(solution: Solution, problem: Problem) -> Solution:
     # If not, should it delete the "old" solution from memory?
     routes = solution.routes
     stations = solution.stations
+
+    # shuffle nodes
     amount = random.randint(1, len(problem.map["Turbines"]) // 2)
 
-    shuffled = routes[:]
+    shuffled_routes = routes[:]
     for _ in range(amount):
-        index1, index2 = random.sample(range(1, len(routes) - 1), 2)
-        shuffled = swap(shuffled, index1, index2)
+        index1, index2 = random.sample(range(0, len(routes) - 1), 2)
+        shuffled_routes = swap(shuffled_routes, index1, index2)
+
+    # shuffle stations
+    amount = random.randint(1, len(stations) // 2)
+
+    shuffled_stations = stations[:]
+    for _ in range(amount):
+        index1, index2 = random.sample(range(0, len(stations) - 1), 2)
+        shuffled_stations = swap(shuffled_stations, index1, index2)
 
     new_solution = Solution()
-    new_solution.routes = shuffled
-    new_solution.stations = stations
+    new_solution.routes = shuffled_routes
+    new_solution.stations = shuffled_stations
     return new_solution
