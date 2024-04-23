@@ -61,6 +61,7 @@ def is_feasible(routes: list, stations: list, problem: Problem):
             if num_tours <= problem.num_vessels * problem.num_time_windows:
                 # check if time windows are met
                 current_time = 0
+                # TODO: Add route duration violation check early?
                 arrival_times = [0] * len(current_route) + [0]
                 for j in range(len(arrival_times)):
                     if j == 0:
@@ -118,8 +119,33 @@ def is_feasible(routes: list, stations: list, problem: Problem):
     return feasible
 
 
-def cost(stations: list[int], problem: Problem):
+def cost(solution: tuple[list[int], list[int]], problem: Problem):
+    _, stations = solution
     window = problem.time_window_assignments[0]
     num_vessels = len(window)
     num_stations = len(set(stations))
     return num_vessels * problem.vessel_cost + num_stations * problem.station_cost
+
+
+def is_valid(routes: list[int], stations: list[int], problem: Problem):
+    # check if the solution is empty
+    if len(routes) == 0 or len(stations) == 0:
+        return False
+    # check if all nodes are visited
+    visited_nodes = []
+    for node in routes:
+        if node == 0:
+            continue
+        if node not in visited_nodes:
+            visited_nodes.append(node)
+        else:
+            return False  # we have a duplicate node
+
+    if len(visited_nodes) != len(problem.map["Turbines"]):
+        return False
+    # check if the amount of tours and stations match
+    num_tours = len([i for i, x in enumerate(routes + [0]) if x == 0])
+    if num_tours != len(stations):
+        return False
+    # otherwise
+    return True

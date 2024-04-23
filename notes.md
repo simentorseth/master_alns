@@ -1,5 +1,8 @@
 # Notes for the ALNS Metaheuristic
 
+## Numbers and parameter values in instances
+Numbers are based on the technical specification given for the Rem Energy CSOV, found athttps://www.remoffshore.no/fleet/rem-energy/
+
 ## Solution Representation
 
 The solution representation consists of two arrays. The first array keeps track of each vessel and turbine visits. Each vessel is separated by a separator, where the separator is the number zero. The second array tracks which charging stations have been used by each vessel. The size of the second array is the number of vessels.
