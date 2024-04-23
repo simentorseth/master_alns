@@ -26,3 +26,6 @@ inspiration/Final - Utils.jl
 inspiration/finalSubmission.py
 inspiration/Utils.py
 pdp_utils_rewritten/pdp_utils_rewritten.py
+
+# test files
+.coverage
