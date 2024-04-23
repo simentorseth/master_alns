@@ -1,8 +1,11 @@
 from heuristic.problem import Problem
+from heuristic.solution import Solution
 import logging
 
 
-def is_feasible(routes: list, stations: list, problem: Problem):
+def is_feasible(solution: Solution, problem: Problem):
+    routes = solution.routes
+    stations = solution.stations
     separators = [i for i, x in enumerate(routes + [0]) if x == 0]
     idx = 0  # start index for current route
 
@@ -119,15 +122,17 @@ def is_feasible(routes: list, stations: list, problem: Problem):
     return feasible
 
 
-def cost(solution: tuple[list[int], list[int]], problem: Problem):
-    _, stations = solution
+def cost(solution: Solution, problem: Problem):
+    stations = solution.stations
     window = problem.time_window_assignments[0]
     num_vessels = len(window)
     num_stations = len(set(stations))
     return num_vessels * problem.vessel_cost + num_stations * problem.station_cost
 
 
-def is_valid(routes: list[int], stations: list[int], problem: Problem):
+def is_valid(solution: Solution, problem: Problem):
+    routes = solution.routes
+    stations = solution.stations
     # check if the solution is empty
     if len(routes) == 0 or len(stations) == 0:
         return False

@@ -1,3 +1,4 @@
+from heuristic.solution import Solution
 from heuristic.utils import is_valid
 
 
@@ -5,9 +6,11 @@ def test_shuffle(test_problem):
     routes, stations, problem = test_problem
     from heuristic.operators import shuffle
 
-    solution = (routes, stations)
+    solution = Solution()
+    solution.routes = routes
+    solution.stations = stations
     new = shuffle(solution, problem)
-    assert is_valid(*new, problem)
+    assert is_valid(new, problem)
 
 
 def test_swap():
