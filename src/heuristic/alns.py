@@ -4,7 +4,7 @@ from heuristic.solution import Solution
 from heuristic.utils import cost, is_feasible
 from itertools import accumulate
 from statistics import mean
-from random import random
+from random import random  # , shuffle
 
 
 class Alns:
@@ -150,6 +150,31 @@ class Alns:
     def get_best(self) -> tuple[Solution, int]:
         return self._best, self._best_cost
 
-    def escape(self) -> tuple[list[int], list[int], int]:
-        # TODO
+    def escape(self, solution: Solution) -> Solution:
+        # TODO: Implement this. Not sure what, but it should
+        # move things around significantly. Can I have a dummy vessel?
+        # What would that even mean in this context?
         raise NotImplementedError
+        routes = solution.routes
+
+        tours = []
+        separators = [i for i, x in enumerate(routes) if x == 0]
+        start_idx = 0
+
+        num_tours = len(separators)
+        for i in range(num_tours):
+            # get the current route
+            current_route = routes[start_idx : separators[i]]
+            shuffled = shuffle(current_route)
+            tours.append(current_route)
+            # adjust start index for next iteration
+            start_idx = separators[i] + 1
+
+        stations = solution.stations
+        shuffle(stations)
+
+        new_solution = Solution()
+        new_solution.routes = [
+            t for i, tour in enumerate(tours) for t in (tour if i == 0 else [0] + tour)
+        ]
+        new_solution.stations = stations

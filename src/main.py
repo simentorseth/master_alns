@@ -1,11 +1,12 @@
 from heuristic.alns import Alns
+
 from heuristic.operators import shuffle
 from heuristic.problem import Problem
 from heuristic.solution import Solution
 from heuristic.utils import is_feasible, cost
 from heuristic.visualise import visualise
 from pprint import pprint
-from random import randint
+from random import randint  # , shuffle
 
 
 def random_solution(problem: Problem) -> Solution:
@@ -57,12 +58,9 @@ def main():
         [shuffle],
         initial,
     )
-    # alns.search()
-    # best, best_cost = alns.get_best()
-    # print(best)
-    # print(f"Cost of best solution: {best_cost}")
 
     best, best_cost, results, mean = alns.consecutive_run()
+    assert is_feasible(best, problem)
     print(f"Best solution:")
     print(f"Routes: {best.routes}")
     print(f"Stations: {best.stations}")
@@ -74,30 +72,29 @@ def main():
     print(f"Stats:")
     print(f"Mean cost: {mean}")
 
-    # num_solutions = 1000
-    # count = 0
-    # for _ in range(num_solutions):
-    #     routes, stations = random_solution(problem)
-    #     if routes and stations:
-    #         problem.time_window_assignments = {
-    #             w: [] for w in range(int(problem.num_time_windows))
-    #         }
-    #         if is_feasible(routes, stations, problem):
-    #             print(routes)
-    #             print(stations)
-    #             pprint(problem.time_window_assignments)
-    #             print(cost(stations, problem))
-    #             print("\n")
-    #             count += 1
-    #             if num_solutions <= 10:
-    #                 # visualise(routes, stations, problem)
-    #                 ...
-    # print(f"Feasible solutions: {count}/{num_solutions} | {count/num_solutions:.2%}%")
+    ans = input("Do you want to visualise the best solution? (y/n): ").lower()
+    if ans == "y":
+        visualise(best, problem)
+    else:
+        print("Exiting program...")
 
-    # routes = [6, 5, 0, 9, 3, 0, 1, 4, 10, 0, 2, 7, 8]
-    # stations = [12, 12, 12, 12]
-    # print((routes, stations))
-    # print(shuffle((routes, stations), problem))
+    # routes = solution.routes
+
+    # tours = []
+    # separators = [i for i, x in enumerate(routes) if x == 0]
+    # start_idx = 0
+
+    # num_tours = len(separators)
+    # for i in range(num_tours):
+    #     # get the current route
+    #     current_route = routes[start_idx : separators[i]]
+    #     shuffle(current_route)
+    #     tours.append(current_route)
+    #     # adjust start index for next iteration
+    #     start_idx = separators[i] + 1
+
+    # print(routes)
+    # print(tours)
 
 
 if __name__ == "__main__":
