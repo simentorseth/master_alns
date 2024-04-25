@@ -66,10 +66,10 @@ class Alns:
         for i in range(self.max_iterations):
             self._it_since_best += 1  # Should this be here?
             if self._it_since_best > self.max_no_improv:
-                num_to_remove = max(
-                    5, len(self.problem.map["Turbines"])
-                )  # no idea what to put here
-                print(f"Escaping with {num_to_remove} turbines")
+                # num_to_remove = max(
+                #     5, len(self.problem.map["Turbines"])
+                # )  # no idea what to put here
+                # print(f"Applying escape algorithm...")
                 # self._current, cost_difference = self.escape(
                 #     self._current, num_to_remove, self.problem
                 # )
