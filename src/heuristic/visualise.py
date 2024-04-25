@@ -1,9 +1,18 @@
 from heuristic.problem import Problem
-import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import networkx as nx
+
+from pathlib import Path
+from heuristic.solution import Solution
 
 
-def visualise(routes: list, stations: list, problem: Problem):
+def visualise(solution: Solution, problem: Problem):
+    # fpath = Path(mpl.get_data_path(), "fonts/ttf/cmr10.ttf")
+    # plt.style.use("seaborn") # TODO: see if this is better, may have to install seaborn
+
+    routes = solution.routes
+    stations = solution.stations
     fig, ax = plt.subplots(figsize=[9, 7])
     graph = nx.MultiDiGraph()
 

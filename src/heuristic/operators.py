@@ -12,6 +12,7 @@ def swap(elements, index1, index2):
     return elements_copy
 
 
+# oops, should've googled. python already implemented this in stdlib...
 def shuffle(solution: Solution, problem: Problem) -> Solution:
     # TODO: Should this modify inplace instead?
     # If not, should it delete the "old" solution from memory?
