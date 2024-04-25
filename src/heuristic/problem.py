@@ -14,6 +14,7 @@ class Problem:
             self._consumption_rate,
             self._vessel_cost,
             self._station_cost,
+            self._sailing_cost,
             self._num_time_windows,
         ) = self._get_parameters().values()
         self._nodes = self._get_nodes()
@@ -21,6 +22,7 @@ class Problem:
         self._demands = self._get_demands()
         self._distances = self._calculate_haversine()
         self._travel_times = self._calculate_travel_times()
+        self._sailing_costs = self._calculate_sailing_costs()
         self._time_windows = self._create_time_windows()
         self._time_window_assignments = {
             w: [] for w in range(int(self._num_time_windows))
@@ -45,6 +47,10 @@ class Problem:
     @property
     def travel_times(self) -> dict[tuple[int, int], float]:
         return self._travel_times
+
+    @property
+    def sailing_costs(self) -> dict[tuple[int, int], float]:
+        return self._sailing_costs
 
     @property
     def charge_capacity(self) -> float:
@@ -137,6 +143,14 @@ class Problem:
         return {
             (i, j): round(
                 (self._distances[(i, j)] / self._velocity) / 3600, 3
+            )  # NB: this rounding may be to small
+            for i, j in self._distances
+        }
+
+    def _calculate_sailing_costs(self) -> dict[tuple[int, int], float]:
+        return {
+            (i, j): round(
+                self._sailing_cost * self._distances[(i, j)], 1
             )  # NB: this rounding may be to small
             for i, j in self._distances
         }

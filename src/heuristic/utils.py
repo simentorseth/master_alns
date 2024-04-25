@@ -123,11 +123,41 @@ def is_feasible(solution: Solution, problem: Problem):
 
 
 def cost(solution: Solution, problem: Problem):
+    # this should work as intended
+    routes = solution.routes
     stations = solution.stations
     window = problem.time_window_assignments[0]
     num_vessels = len(window)
     num_stations = len(set(stations))
-    return num_vessels * problem.vessel_cost + num_stations * problem.station_cost
+
+    total_cost = 0
+
+    # fixed costs
+    total_cost += (
+        num_vessels * problem.vessel_cost + num_stations * problem.station_cost
+    )
+
+    # sailing costs
+    separators = [i for i, x in enumerate(routes + [0]) if x == 0]
+    idx = 0  # start index for current route
+
+    for i in range(len(separators)):
+        # get the current route
+        current_route = routes[idx : separators[i]]
+        # adjust start index for next iteration
+        idx = separators[i] + 1
+        # check if current route is empty
+        if len(current_route) > 0:
+            # add the sailing costs for the current route
+            for j in range(len(current_route) - 1):
+                total_cost += problem.sailing_costs[
+                    current_route[j], current_route[j + 1]
+                ]
+            # add the sailing costs to and from the station
+            total_cost += problem.sailing_costs[stations[i], current_route[0]]
+            total_cost += problem.sailing_costs[current_route[-1], stations[i]]
+
+    return total_cost
 
 
 def is_valid(solution: Solution, problem: Problem):
