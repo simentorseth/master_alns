@@ -1,8 +1,10 @@
 from copy import copy
-from random import random
-from itertools import accumulate
 from heuristic.problem import Problem
+from heuristic.solution import Solution
 from heuristic.utils import cost, is_feasible
+from itertools import accumulate
+from statistics import mean
+from random import random
 
 
 class Alns:
@@ -10,7 +12,7 @@ class Alns:
         self,
         problem: Problem,
         operators: list[callable],
-        initial: tuple[list[int], list[int]],
+        initial: Solution,
         *,
         max_iterations: int = 10000,
         max_no_improv: int = 1000,
@@ -21,8 +23,8 @@ class Alns:
         self.max_iterations = max_iterations
         self.max_no_improv = max_no_improv
         self._it_since_best = 0
-        self._current: tuple[list[int], list[int]] = None
-        self._best: tuple[list[int], list[int]] = None
+        self._current: Solution = None
+        self._best: Solution = None
         self._best_cost = 0
         self._current_cost = 0
         self._weights = [0.5 for _ in range(len(self.operators))]
@@ -30,22 +32,36 @@ class Alns:
         self._r = 0.5  # predifined value to balance earlier weights
         self._q_max = max(5, len(self.problem.map["Turbines"]) // 5)
         self._alpha = (0.033) ** (1 / self.max_iterations)
-        self.scores = [0 for _ in range(len(self.operators))]
+        self._scores = [0 for _ in range(len(self.operators))]
         self.update_probability()
 
-    def single_run():
-        raise NotImplementedError
+    def single_run(self) -> tuple[Solution, int]:
+        self.search()
+        return self.get_best()
 
-    def run():
-        raise NotImplementedError
+    def consecutive_run(self) -> ...:
+        best_cost = 0
+        best = None
+        results = []
+
+        for i in range(10):
+            self.search()
+            current, current_cost = self.get_best()
+            results.append(current_cost)
+            if i == 0 or current_cost < best_cost:
+                best = current
+                best_cost = current_cost
+
+        return best, best_cost, results, mean(results)
 
     def search(self) -> None:
         self._current = copy(self.initial)
         self._best = copy(self.initial)
         self._current_cost = cost(self._current, self.problem)
+        self._best_cost = self._current_cost
 
         num_used_operators = [0 for _ in range(len(self.operators))]
-        explored = {tuple(*self._current): self._current_cost}
+        explored = {self._current: self._current_cost}
 
         for i in range(self.max_iterations):
             self._it_since_best += 1  # Should this be here?
@@ -53,22 +69,25 @@ class Alns:
                 num_to_remove = max(
                     5, len(self.problem.map["Turbines"])
                 )  # no idea what to put here
-                self._current, cost_difference = self.escape(
-                    self._current, num_to_remove, self.problem
-                )
-                self._current_cost += cost_difference
+                print(f"Escaping with {num_to_remove} turbines")
+                # self._current, cost_difference = self.escape(
+                #     self._current, num_to_remove, self.problem
+                # )
+                # self._current_cost += cost_difference
                 self._it_since_best = 0
 
             random_num = random()
             operator = self.select_operator(random_num)
+            if len(self.operators) == 1:
+                operator = 0
             candidate = self.operators[operator](self._current, self.problem)
             num_used_operators[operator] += 1
 
-            if is_feasible(*candidate, self.problem):
+            if is_feasible(candidate, self.problem):
                 candidate_cost = cost(candidate, self.problem)
-                is_explored = tuple(*candidate) in explored
+                is_explored = candidate in explored
                 if not is_explored:
-                    explored[tuple(*candidate)] = candidate_cost
+                    explored[candidate] = candidate_cost
 
                 if candidate_cost < self._best_cost:
                     self.update_scores(operator, candidate_cost, is_explored)
@@ -84,11 +103,11 @@ class Alns:
                         self._best = candidate
                         self._best_cost = candidate_cost
 
-        if i % 100 == 0:
-            self.update_weights(num_used_operators)
-            self.update_probability()
-            self.reset_scores()
-            num_used_operators = [0 for _ in range(len(self.operators))]
+            if i % 100 == 0:
+                self.update_weights(num_used_operators)
+                self.update_probability()
+                self.reset_scores()
+                num_used_operators = [0 for _ in range(len(self.operators))]
 
     def update_scores(self, operator: int, cost: int, unexplored: bool) -> None:
         if cost < self._best_cost:
@@ -128,7 +147,7 @@ class Alns:
             (i for i, x in enumerate(self._probability) if x > random_num), None
         )
 
-    def get_best(self) -> tuple[list[int], list[int], int]:
+    def get_best(self) -> tuple[Solution, int]:
         return self._best, self._best_cost
 
     def escape(self) -> tuple[list[int], list[int], int]:
