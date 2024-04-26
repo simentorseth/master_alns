@@ -1,5 +1,6 @@
 from copy import copy
 from heuristic.problem import Problem
+from heuristic.operators import optimal_stations
 from heuristic.solution import Solution
 from heuristic.utils import cost, is_feasible
 from itertools import accumulate
@@ -81,6 +82,9 @@ class Alns:
             if len(self.operators) == 1:
                 operator = 0
             candidate = self.operators[operator](self._current, self.problem)
+            # not sure if this needs to happen here
+            # optimal station assignment does not take feasibility into account
+            candidate = optimal_stations(candidate, self.problem)
             num_used_operators[operator] += 1
 
             if is_feasible(candidate, self.problem):

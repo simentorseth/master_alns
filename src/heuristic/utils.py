@@ -1,6 +1,7 @@
 from heuristic.problem import Problem
 from heuristic.solution import Solution
 import logging
+import gurobipy as gp
 
 
 def is_feasible(solution: Solution, problem: Problem):
@@ -184,3 +185,95 @@ def is_valid(solution: Solution, problem: Problem):
         return False
     # otherwise
     return True
+
+
+def get_to_and_from_costs(solution: Solution, problem: Problem):
+    routes = solution.routes
+
+    # indices for the separators
+    separators = [i for i, x in enumerate(routes + [0]) if x == 0]
+    # start index for current route
+    idx = 0
+
+    table = []
+    num_tours = len(separators)
+    for i in range(num_tours):
+        # get the current route
+        current_route = routes[idx : separators[i]]
+        # adjust start index for next iteration
+        idx = separators[i] + 1
+        if len(current_route) > 0:
+            to_and_from_costs = []
+            start, end = current_route[0], current_route[-1]
+            for station in problem.map["Substations"]:
+                to_and_from_costs.append(
+                    round(
+                        problem.sailing_costs[start, station]
+                        + problem.sailing_costs[end, station],
+                        1,
+                    )
+                )
+            table.append(to_and_from_costs)
+    return table
+
+
+def initialise_model(to_and_from_costs: list[list[float]], fixed_costs: list[int]):
+    m = gp.Model("Optimal Station Assignment")
+    x = m.addVars(
+        [
+            (i, j)
+            for i in range(len(to_and_from_costs))
+            for j in range(len(fixed_costs))
+        ],
+        vtype=gp.GRB.BINARY,
+        name="x",
+    )
+    y = m.addVars(
+        [j for j in range(len(fixed_costs))],
+        vtype=gp.GRB.BINARY,
+        name="y",
+    )
+    m.setObjective(
+        gp.quicksum(
+            to_and_from_costs[i][j] * x[i, j]
+            for i in range(len(to_and_from_costs))
+            for j in range(len(fixed_costs))
+        )
+        + gp.quicksum(fixed_costs[j] * y[j] for j in range(len(fixed_costs))),
+        gp.GRB.MINIMIZE,
+    )
+    m.addConstrs(
+        gp.quicksum(x[i, j] for j in range(len(fixed_costs))) == 1
+        for i in range(len(to_and_from_costs))
+    )
+    m.addConstrs(
+        gp.quicksum(x[i, j] for i in range(len(to_and_from_costs)))
+        <= y[j] * len(to_and_from_costs)
+        for j in range(len(fixed_costs))
+    )
+    return m
+
+
+def get_station_assignment(
+    model: gp.Model,
+    num_sources: int,
+    num_destinations: int,
+    problem: Problem,
+):
+    # Retrieve the x[i, j] values from the model after optimization
+    x_values = model.getAttr("X", model.getVars())
+
+    # Create a 2D matrix to store the values of x[i, j]
+    assignment_matrix = [
+        [int(x_values[i * num_destinations + j]) for j in range(num_destinations)]
+        for i in range(num_sources)
+    ]
+    # Get the assignment of stations to each tour
+    assignment = [0 for _ in range(num_sources)]
+    for tour_idx in range(len(assignment_matrix)):
+        for i, value in enumerate(assignment_matrix[tour_idx]):
+            if value == 1:
+                assignment[tour_idx] = problem.map["Substations"][i]
+                break
+
+    return assignment
