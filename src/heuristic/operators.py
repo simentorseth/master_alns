@@ -1,7 +1,14 @@
+from copy import copy
 import random
 from heuristic.problem import Problem
 from heuristic.solution import Solution
-from heuristic.utils import is_feasible, cost
+from heuristic.utils import (
+    is_feasible,
+    cost,
+    get_to_and_from_costs,
+    get_station_assignment,
+    initialise_model,
+)
 
 
 def swap(elements, index1, index2):
@@ -38,4 +45,20 @@ def shuffle(solution: Solution, problem: Problem) -> Solution:
     new_solution = Solution()
     new_solution.routes = shuffled_routes
     new_solution.stations = shuffled_stations
+    return new_solution
+
+
+def optimal_stations(solution: Solution, problem: Problem) -> Solution:
+    to_and_from_costs = get_to_and_from_costs(solution, problem)
+    fixed_costs = [
+        problem._station_cost for _ in range(len(problem.map["Substations"]))
+    ]
+
+    model = initialise_model(to_and_from_costs, fixed_costs)
+    model.optimize()
+    assignment = get_station_assignment(
+        model, len(to_and_from_costs), len(fixed_costs), problem
+    )
+    new_solution = copy(solution)
+    new_solution.stations = assignment
     return new_solution
