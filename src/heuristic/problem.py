@@ -27,6 +27,8 @@ class Problem:
         self._time_window_assignments = {
             w: [] for w in range(int(self._num_time_windows))
         }
+        self._num_turbines = len(self._map["Turbines"])
+        self._num_stations = len(self._map["Substations"])
 
     @property
     def map(self) -> dict[int, list[int]]:
@@ -35,6 +37,14 @@ class Problem:
     @property
     def num_vessels(self) -> int:
         return self._num_vessels
+
+    @property
+    def num_turbines(self) -> int:
+        return self._num_turbines
+
+    @property
+    def num_stations(self) -> int:
+        return self._num_stations
 
     @property
     def num_time_windows(self) -> int:
@@ -168,7 +178,7 @@ class Problem:
         demands = {}
         for row in self._instance:
             if row:
-                demands[int(row[0])] = float(row[-2])
+                demands[int(row[0]) + 1] = float(row[-2])
         return demands
 
     def _get_nodes(self) -> dict[int, tuple[float, float]]:
