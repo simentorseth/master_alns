@@ -2,6 +2,7 @@ from heuristic.problem import Problem
 from heuristic.solution import Solution
 import logging
 import gurobipy as gp
+from random import randint
 
 
 def is_feasible(solution: Solution, problem: Problem):
@@ -277,3 +278,161 @@ def get_station_assignment(
                 break
 
     return assignment
+
+
+def findmin(itr: list[int]) -> tuple[float, int]:
+    if not itr:  # Check if the iterable is empty
+        return None
+
+    min_value: int = itr[0]
+    min_index: int = 0
+
+    for index, value in enumerate(itr):
+        if value < min_value:
+            min_value = value
+            min_index = index
+
+    return min_value, min_index
+
+
+def insertion_costs(
+    tour: list[int],
+    station: int,
+    node: int,
+    insert_indices: list[int],
+    problem: Problem,
+) -> list[float]:
+    costs = []
+    if len(tour) == 0:
+        # TODO: Unsure about this right here, double the work optimal station operator???
+        cost = problem.sailing_costs[station, node]
+        cost += problem.sailing_costs[node, station]
+        costs.append(cost)
+        return costs
+    if len(tour) == 1:
+        cost = problem.sailing_costs[node, tour[0]]
+        costs.append(cost)
+        return costs
+    for i in insert_indices:
+        cost = 0
+        if i == 0:
+            cost += problem.sailing_costs[node, tour[0]]
+        elif i == len(tour):
+            cost += problem.sailing_costs[tour[-1], node]
+        else:
+            cost += problem.sailing_costs[tour[i - 1], node]
+            cost += problem.sailing_costs[node, tour[i]]
+        costs.append(cost)
+    return costs
+
+
+@DeprecationWarning
+def charge_levels_are_feasible(tour: list[int], station: int, problem: Problem) -> bool:
+    current_charge = problem.charge_capacity
+    charge_levels = [0] * len(tour) + [0]
+    for j in range(len(charge_levels)):
+        if j == 0:
+            charge_levels[j] = round(
+                (
+                    current_charge
+                    - problem.distances[station, tour[j]] * problem.consumption_rate
+                ),
+                2,
+            )
+        elif j == len(tour):
+            charge_levels[j] = round(
+                (
+                    current_charge
+                    - problem.distances[tour[j - 1], station] * problem.consumption_rate
+                ),
+                2,
+            )
+        else:
+            charge_levels[j] = round(
+                (
+                    current_charge
+                    - problem.distances[tour[j - 1], tour[j]] * problem.consumption_rate
+                ),
+                2,
+            )
+        if charge_levels[j] < 0 or charge_levels[j] > problem.charge_capacity:
+            return False
+        current_charge = charge_levels[j]
+    return True
+
+
+def feasible_inserts(
+    tour: list[int], station: int, node: int, problem: Problem
+) -> list[int]:
+    complete_tour = [station] + tour + [station]
+    charge = problem.charge_capacity
+    duration = 0
+    for i in range(len(complete_tour) - 1):
+        charge -= (
+            problem.distances[complete_tour[i], complete_tour[i + 1]]
+            * problem.consumption_rate
+        )
+        duration += (
+            problem.travel_times[complete_tour[i], complete_tour[i + 1]]
+            + problem.demands[complete_tour[i]]
+        )
+        if charge < 0 or charge > problem.charge_capacity:
+            return []  # no feasible insertions
+        if (
+            duration >= 8.0  # should it be >= or strictly > ?
+        ):  # hard coded time window length, should be changed to problem specific:
+            return []  # no feasible insertions
+
+    insert_indices = []
+    for i in range(1, len(complete_tour)):
+        insert_charge = 0
+        insert_duration = 0
+        insert_charge += (
+            problem.distances[complete_tour[i - 1], node] * problem.consumption_rate
+        )
+        insert_charge += (
+            problem.distances[node, complete_tour[i]] * problem.consumption_rate
+        )
+        insert_duration += problem.travel_times[complete_tour[i - 1], node]
+        insert_duration += (
+            problem.travel_times[node, complete_tour[i]] + problem.demands[node]
+        )
+        if (
+            charge - insert_charge > 0
+            or charge - insert_charge < problem.charge_capacity
+        ):
+            if duration + insert_duration <= 8.0:
+                insert_indices.append(i - 1)
+    return insert_indices
+
+
+def random_solution(problem: Problem) -> Solution:
+    unvisited = problem.map["Turbines"].copy()
+    routes = []
+    while len(unvisited) > 0:
+        tour_length = randint(1, len(unvisited))
+        tour = []
+        for _ in range(tour_length):
+            turbine = unvisited.pop(randint(0, len(unvisited) - 1))
+            tour.append(turbine)
+        routes += tour + [0]
+    num_tours = len([i for i, x in enumerate(routes) if x == 0])
+    stations = [
+        problem.map["Substations"][randint(0, len(problem.map["Substations"]) - 1)]
+        for _ in range(num_tours)
+    ]
+    try:
+        if num_tours > problem.num_vessels * problem.num_time_windows:
+            raise ValueError()
+    except ValueError as e:
+        print(f"Too many tours!")
+        print(
+            f"Num tours: {num_tours} > Num vessels: {problem.num_vessels} * Num time windows: {problem.num_time_windows}"
+        )
+        print(f"Route: {routes}")
+        print(f"Stations: {stations}")
+        return None
+    solution = Solution()
+    solution.routes = routes[:-1]
+    solution.stations = stations
+    return solution
