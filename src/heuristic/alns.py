@@ -1,11 +1,11 @@
 from copy import copy
 from heuristic.problem import Problem
-from heuristic.operators import optimal_stations
+from heuristic.operators import optimal_stations, escape
 from heuristic.solution import Solution
 from heuristic.utils import cost, is_feasible
 from itertools import accumulate
 from statistics import mean
-from random import random  # , shuffle
+from random import random, randint
 
 
 class Alns:
@@ -31,7 +31,7 @@ class Alns:
         self._weights = [0.5 for _ in range(len(self.operators))]
         self._probability = []
         self._r = 0.5  # predifined value to balance earlier weights
-        self._q_max = max(5, len(self.problem.map["Turbines"]) // 5)
+        self._q_max = int(0.8 * len(problem.map["Turbines"]))
         self._alpha = (0.033) ** (1 / self.max_iterations)
         self._scores = [0 for _ in range(len(self.operators))]
         self.update_probability()
@@ -40,7 +40,7 @@ class Alns:
         self.search()
         return self.get_best()
 
-    def consecutive_run(self) -> ...:
+    def consecutive_run(self) -> tuple[Solution, int, list[float], float]:
         best_cost = 0
         best = None
         results = []
@@ -67,21 +67,16 @@ class Alns:
         for i in range(self.max_iterations):
             self._it_since_best += 1  # Should this be here?
             if self._it_since_best > self.max_no_improv:
-                # num_to_remove = max(
-                #     5, len(self.problem.map["Turbines"])
-                # )  # no idea what to put here
-                # print(f"Applying escape algorithm...")
-                # self._current, cost_difference = self.escape(
-                #     self._current, num_to_remove, self.problem
-                # )
-                # self._current_cost += cost_difference
+                q_escape = max(5, self._q_max)
+                self._current = escape(self._current, q_escape, self.problem)
                 self._it_since_best = 0
 
-            random_num = random()
+            random_num = random()  # <- move this to select_operator???
             operator = self.select_operator(random_num)
-            if len(self.operators) == 1:
-                operator = 0
-            candidate = self.operators[operator](self._current, self.problem)
+            # if len(self.operators) == 1:  # select_operator returns None, so...
+            #     operator = 0
+            q = randint(1, self._q_max)  # number of turbines to remove
+            candidate = self.operators[operator](self._current, q, self.problem)
             # not sure if this needs to happen here
             # optimal station assignment does not take feasibility into account
             candidate = optimal_stations(candidate, self.problem)
@@ -138,8 +133,8 @@ class Alns:
         ]
 
     def update_probability(self) -> None:
-        self._probability = accumulate(
-            [weight / sum(self._weights) for weight in self._weights]
+        self._probability = list(
+            accumulate([weight / sum(self._weights) for weight in self._weights])
         )
 
     # Remove?
@@ -153,32 +148,3 @@ class Alns:
 
     def get_best(self) -> tuple[Solution, int]:
         return self._best, self._best_cost
-
-    def escape(self, solution: Solution) -> Solution:
-        # TODO: Implement this. Not sure what, but it should
-        # move things around significantly. Can I have a dummy vessel?
-        # What would that even mean in this context?
-        raise NotImplementedError
-        routes = solution.routes
-
-        tours = []
-        separators = [i for i, x in enumerate(routes) if x == 0]
-        start_idx = 0
-
-        num_tours = len(separators)
-        for i in range(num_tours):
-            # get the current route
-            current_route = routes[start_idx : separators[i]]
-            shuffled = shuffle(current_route)
-            tours.append(current_route)
-            # adjust start index for next iteration
-            start_idx = separators[i] + 1
-
-        stations = solution.stations
-        shuffle(stations)
-
-        new_solution = Solution()
-        new_solution.routes = [
-            t for i, tour in enumerate(tours) for t in (tour if i == 0 else [0] + tour)
-        ]
-        new_solution.stations = stations

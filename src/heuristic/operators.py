@@ -1,11 +1,8 @@
 from copy import copy
 from random import shuffle, choice
-from pprint import pprint
 from heuristic.problem import Problem
 from heuristic.solution import Solution
 from heuristic.utils import (
-    is_feasible,
-    cost,
     get_to_and_from_costs,
     get_station_assignment,
     initialise_model,
@@ -43,7 +40,83 @@ def random_removal(solution: Solution, num_remove: int, problem: Problem) -> lis
     routes = solution.routes
 
     # indices of the tour separators
-    separators = [i for i, x in enumerate(routes + [0]) if x == 0]
+    separators = [i for i, x in enumerate(routes) if x == 0]
+    # start index for current route
+    idx = 0
+
+    tours = []
+    num_tours = len(separators)
+
+    for i in range(num_tours):
+        # get the current route
+        current_route = routes[idx : separators[i]]  # the slice makes a shallow copy
+        # add the current route to the list of tours
+        tours.append(current_route)
+        # adjust start index for next iteration
+        idx = separators[i] + 1
+
+    turbines = problem.turbines.copy()
+    to_remove = []
+    for _ in range(num_remove):
+        node = choice(turbines)
+        to_remove.append(node)
+        turbines.remove(node)
+
+    for node in to_remove:
+        node_idx = routes.index(node)
+        remove_tour_idx = routes[: node_idx + 1].count(0)
+        remove_tour = tours[remove_tour_idx]
+        remove_tour.remove(node)
+
+    shuffle(to_remove)
+    return to_remove, tours
+
+
+def greedy_insertion(
+    solution: Solution, to_remove: list[int], tours: list[list[int]], problem: Problem
+) -> Solution:
+    for node in to_remove:
+        tour = 0
+        min_cost = float("inf")
+        insert = 0
+        for i, current_tour in enumerate(tours):
+            insert_indices = feasible_inserts(
+                current_tour, solution.stations[i], node, problem
+            )
+            if len(insert_indices) > 0:
+                costs: list[float] = insertion_costs(
+                    current_tour, solution.stations[i], node, insert_indices, problem
+                )
+                curr_min_cost, idx = findmin(costs)
+                if curr_min_cost < min_cost:
+                    min_cost = curr_min_cost
+                    tour = i
+                    insert = insert_indices[idx]
+            else:
+                new_tour = [node]
+                tours.append(new_tour)
+                continue
+        tours[tour].insert(insert, node)
+
+    # this is old, does not work
+    for i in range(len(tours)):
+        if i == len(tours) - 1:
+            continue
+        else:
+            tours[i].append(0)
+
+    new_solution = Solution()
+    new_solution.routes = [node for tour in tours for node in tour]
+    new_solution.stations = copy(solution.stations)
+    return new_solution
+
+
+def random_operator(solution: Solution, num_remove: int, problem: Problem) -> Solution:
+    routes = solution.routes.copy()
+    stations = solution.stations.copy()
+
+    # indices of the tour separators
+    separators = [i for i, x in enumerate(routes) if x == 0]
     # start index for current route
     idx = 0
 
@@ -67,71 +140,75 @@ def random_removal(solution: Solution, num_remove: int, problem: Problem) -> lis
 
     for node in to_remove:
         node_idx = routes.index(node)
-        remove_tour_idx = sum(1 for x in routes[: node_idx + 1] if x == 0) + 1
-        remove_tour = tours[remove_tour_idx - 1]
+        remove_tour_idx = routes[: node_idx + 1].count(0)
+        remove_tour = tours[remove_tour_idx]
         remove_tour.remove(node)
 
     shuffle(to_remove)
-    return to_remove, tours, solution
 
-
-def greedy_insertion(
-    solution: Solution, to_remove: list[int], tours: list[list[int]], problem: Problem
-) -> Solution:
     for node in to_remove:
-        tour = 0
+        tour = None
         min_cost = float("inf")
-        insert = 0
+        insert = None
         for i, current_tour in enumerate(tours):
-            insert_indices = feasible_inserts(
-                current_tour, solution.stations[i], node, problem
-            )
+            insert_indices = feasible_inserts(current_tour, stations[i], node, problem)
             if len(insert_indices) > 0:
                 costs = insertion_costs(
-                    current_tour, solution.stations[i], node, insert_indices, problem
+                    current_tour, stations[i], node, insert_indices, problem
                 )
                 curr_min_cost, idx = findmin(costs)
                 if curr_min_cost < min_cost:
                     min_cost = curr_min_cost
                     tour = i
                     insert = insert_indices[idx]
+        if tour is None and insert is None:
+            new_tour = [node]
+            tours.append(new_tour)
+            stations.append(choice(problem.map["Substations"]))
+            continue
         tours[tour].insert(insert, node)
 
+    new_solution = Solution()
+    new_solution.stations = copy(stations)
+
     for i in range(len(tours)):
-        if i == len(tours) - 1:
-            continue
+        if len(tours[i]) == 0:
+            new_solution.stations.pop(i)
         else:
             tours[i].append(0)
 
-    new_solution = Solution()
-    new_solution.routes = [node for tour in tours for node in tour]
-    new_solution.stations = copy(solution.stations)
+    new_solution.routes = [node for tour in tours if tour for node in tour]
+
     return new_solution
 
 
-# def shuffle(solution: Solution, problem: Problem) -> Solution:
-#     # TODO: Should this modify inplace instead?
-#     # If not, should it delete the "old" solution from memory?
-#     routes = solution.routes
-#     stations = solution.stations
+def escape(solution: Solution, num_remove: int, problem: Problem) -> Solution:
+    removed, tours = random_removal(solution, num_remove, problem)
+    for node in removed:
+        inserted = False
+        for i, current_tour in enumerate(tours):
+            insert_indices = feasible_inserts(
+                current_tour, solution.stations[i], node, problem
+            )
+            if len(insert_indices) > 0:
+                current_tour.insert(choice(insert_indices), node)
+                inserted = True
+                break
+        if not inserted:
+            # raise Exception("No feasible insertions found")
+            new_tour = [node]
+            tours.append(new_tour)
+            solution.stations.append(choice(problem.stations))
 
-#     # shuffle nodes
-#     amount = random.randint(1, len(problem.map["Turbines"]) // 2)
+    new_solution = Solution()
+    new_solution.stations = copy(solution.stations)
 
-#     shuffled_routes = routes[:]
-#     for _ in range(amount):
-#         index1, index2 = random.sample(range(0, len(routes) - 1), 2)
-#         shuffled_routes = swap(shuffled_routes, index1, index2)
+    for i in range(len(tours)):
+        if len(tours[i]) == 0:
+            new_solution.stations.pop(i)
+        else:
+            tours[i].append(0)
 
-#     # shuffle stations
-#     amount = random.randint(1, len(stations) // 2)
+    new_solution.routes = [node for tour in tours if tour for node in tour]
 
-#     shuffled_stations = stations[:]
-#     for _ in range(amount):
-#         index1, index2 = random.sample(range(0, len(stations) - 1), 2)
-#         shuffled_stations = swap(shuffled_stations, index1, index2)
-
-#     new_solution = Solution()
-#     new_solution.routes = shuffled_routes
-#     new_solution.stations = shuffled_stations
-#     return new_solution
+    return new_solution

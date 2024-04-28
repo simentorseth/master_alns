@@ -29,6 +29,8 @@ class Problem:
         }
         self._num_turbines = len(self._map["Turbines"])
         self._num_stations = len(self._map["Substations"])
+        self._turbines = self._map["Turbines"]
+        self._stations = self._map["Substations"]
 
     @property
     def map(self) -> dict[int, list[int]]:
@@ -41,6 +43,14 @@ class Problem:
     @property
     def num_turbines(self) -> int:
         return self._num_turbines
+
+    @property
+    def turbines(self) -> list[int]:
+        return self._turbines
+
+    @property
+    def stations(self) -> list[int]:
+        return self._stations
 
     @property
     def num_stations(self) -> int:

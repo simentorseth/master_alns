@@ -1,76 +1,28 @@
 from heuristic.alns import Alns
-
-from heuristic.operators import shuffle
+from heuristic.operators import optimal_stations, random_operator, escape
 from heuristic.problem import Problem
 from heuristic.solution import Solution
-from heuristic.utils import is_feasible, cost
+from heuristic.utils import is_feasible, random_solution
 from heuristic.visualise import visualise
 from pprint import pprint
-from random import randint  # , shuffle
+import random
+from random import randint
 
 
-def random_solution(problem: Problem) -> Solution:
-    unvisited = problem.map["Turbines"].copy()
-    routes = []
-    while len(unvisited) > 0:
-        tour_length = randint(1, len(unvisited))
-        tour = []
-        for _ in range(tour_length):
-            turbine = unvisited.pop(randint(0, len(unvisited) - 1))
-            tour.append(turbine)
-        routes += tour + [0]
-    num_tours = len([i for i, x in enumerate(routes) if x == 0])
-    stations = [
-        problem.map["Substations"][randint(0, len(problem.map["Substations"]) - 1)]
-        for _ in range(num_tours)
-    ]
-    try:
-        if num_tours > problem.num_vessels * problem.num_time_windows:
-            raise ValueError()
-    except ValueError as e:
-        print(f"Too many tours!")
-        print(
-            f"Num tours: {num_tours} > Num vessels: {problem.num_vessels} * Num time windows: {problem.num_time_windows}"
-        )
-        print(f"Route: {routes}")
-        print(f"Stations: {stations}")
-        return None
-    solution = Solution()
-    solution.routes = routes[:-1]
-    solution.stations = stations
-    return solution
-
-
-def main():
-    filename = "./src/instances/instance_testing.csv"
-    problem = Problem(filename)
-
-    solution = None
-    while not solution:
-        s = random_solution(problem)
-        if s is not None:
-            if is_feasible(s, problem):
-                solution = s
-                del s
-    initial = solution
+def run_single(problem: Problem, solution: Solution) -> None:
     alns = Alns(
         problem,
-        [shuffle],
-        initial,
+        [random_operator],
+        solution,
     )
 
-    best, best_cost, results, mean = alns.consecutive_run()
+    best, best_cost = alns.single_run()
     assert is_feasible(best, problem)
     print(f"Best solution:")
     print(f"Routes: {best.routes}")
     print(f"Stations: {best.stations}")
     print(f"Cost: {best_cost}")
     print("\n")
-    print(f"Results:")
-    print(results)
-    print("\n")
-    print(f"Stats:")
-    print(f"Mean cost: {mean}")
 
     ans = input("Do you want to visualise the best solution? (y/n): ").lower()
     if ans == "y":
@@ -78,23 +30,50 @@ def main():
     else:
         print("Exiting program...")
 
-    # routes = solution.routes
 
-    # tours = []
-    # separators = [i for i, x in enumerate(routes) if x == 0]
-    # start_idx = 0
+def run_consecutive(problem: Problem, solution: Solution) -> None:
+    alns = Alns(
+        problem,
+        [random_operator],
+        solution,
+    )
 
-    # num_tours = len(separators)
-    # for i in range(num_tours):
-    #     # get the current route
-    #     current_route = routes[start_idx : separators[i]]
-    #     shuffle(current_route)
-    #     tours.append(current_route)
-    #     # adjust start index for next iteration
-    #     start_idx = separators[i] + 1
+    best, best_cost, results, mean_results = alns.consecutive_run()
+    assert is_feasible(best, problem)
+    print(f"Best solution:")
+    print(f"Routes: {best.routes}")
+    print(f"Stations: {best.stations}")
+    print(f"Cost: {best_cost}")
+    print(f"Results: {results}")
+    print(f"Mean results: {mean_results}")
+    print("\n")
 
-    # print(routes)
-    # print(tours)
+    ans = input("Do you want to visualise the best solution? (y/n): ").lower()
+    if ans == "y":
+        visualise(best, problem)
+    else:
+        print("Exiting program...")
+
+
+def main():
+    filename = "./src/instances/instance_testing.csv"
+    problem = Problem(filename)
+    random.seed(1337)
+
+    # solution = None
+    # while not solution:
+    #     s = random_solution(problem)
+    #     if s is not None:
+    #         if is_feasible(s, problem):
+    #             solution = s
+    #             del s
+    # initial = solution
+    initial = Solution()
+    initial.routes = [4, 8, 0, 2, 6, 3, 0, 9, 10, 5, 1, 0, 7, 0]
+    initial.stations = [11, 13, 11, 14]
+
+    # run_single(problem, initial)
+    run_consecutive(problem, initial)
 
 
 if __name__ == "__main__":

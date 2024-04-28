@@ -8,7 +8,7 @@ from random import randint
 def is_feasible(solution: Solution, problem: Problem):
     routes = solution.routes
     stations = solution.stations
-    separators = [i for i, x in enumerate(routes + [0]) if x == 0]
+    separators = [i for i, x in enumerate(routes) if x == 0]
     idx = 0  # start index for current route
 
     num_tours = len(separators)
@@ -433,6 +433,6 @@ def random_solution(problem: Problem) -> Solution:
         print(f"Stations: {stations}")
         return None
     solution = Solution()
-    solution.routes = routes[:-1]
+    solution.routes = routes
     solution.stations = stations
     return solution
