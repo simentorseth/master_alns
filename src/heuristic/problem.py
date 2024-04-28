@@ -31,6 +31,7 @@ class Problem:
         self._num_stations = len(self._map["Substations"])
         self._turbines = self._map["Turbines"]
         self._stations = self._map["Substations"]
+        self._to_and_from_costs = self.compute_to_and_from_costs()
 
     @property
     def map(self) -> dict[int, list[int]]:
@@ -242,3 +243,17 @@ class Problem:
         assert len(mapping["Turbines"]) == len(turbines)
         assert len(mapping["Substations"]) == len(stations)
         return mapping
+
+    def compute_to_and_from_costs(self) -> dict[int, dict[int, dict[int, float]]]:
+        to_and_from_costs = {}
+        for t1 in self._turbines:
+            to_and_from_costs[t1] = {}
+            for t2 in self._turbines:
+                if t1 != t2:
+                    to_and_from_costs[t1][t2] = {}
+                    for s in self._stations:
+                        to_and_from_cost = (
+                            self._sailing_costs[(t1, s)] + self._sailing_costs[(t2, s)]
+                        )
+                        to_and_from_costs[t1][t2][s] = to_and_from_cost
+        return to_and_from_costs
