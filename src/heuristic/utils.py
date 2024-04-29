@@ -189,6 +189,26 @@ def is_valid(solution: Solution, problem: Problem):
 
 
 def get_to_and_from_costs(solution: Solution, problem: Problem):
+    to_and_from_costs = []
+
+    current_route = []
+    for node in solution.routes:
+        if node == 0:
+            if current_route:
+                start, end = current_route[0], current_route[-1]
+                costs = []
+                for station in problem.stations:
+                    cost = problem.to_and_from_costs[start][end][station]
+                    costs.append(cost)
+                current_route = []
+                to_and_from_costs.append(costs)
+        else:
+            current_route.append(node)
+    return to_and_from_costs
+
+
+@DeprecationWarning
+def get_to_and_from_costs_old(solution: Solution, problem: Problem):
     routes = solution.routes
 
     # indices for the separators
