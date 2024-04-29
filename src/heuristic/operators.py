@@ -22,9 +22,7 @@ def swap(elements, index1, index2):
 
 def optimal_stations(solution: Solution, problem: Problem) -> Solution:
     to_and_from_costs = get_to_and_from_costs(solution, problem)
-    fixed_costs = [
-        problem._station_cost for _ in range(len(problem.map["Substations"]))
-    ]
+    fixed_costs = [problem._station_cost for _ in range(len(problem.stations))]
 
     model = initialise_model(to_and_from_costs, fixed_costs)
     model.optimize()
@@ -111,7 +109,9 @@ def greedy_insertion(
     return new_solution
 
 
-def random_operator(solution: Solution, num_remove: int, problem: Problem) -> Solution:
+def random_greedy_operator(
+    solution: Solution, num_remove: int, problem: Problem
+) -> Solution:
     routes = solution.routes.copy()
     stations = solution.stations.copy()
 

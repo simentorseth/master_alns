@@ -74,6 +74,10 @@ class Problem:
         return self._sailing_costs
 
     @property
+    def to_and_from_costs(self) -> dict[int, dict[int, dict[int, float]]]:
+        return self._to_and_from_costs
+
+    @property
     def charge_capacity(self) -> float:
         return self._charge_capacity
 
@@ -249,11 +253,10 @@ class Problem:
         for t1 in self._turbines:
             to_and_from_costs[t1] = {}
             for t2 in self._turbines:
-                if t1 != t2:
-                    to_and_from_costs[t1][t2] = {}
-                    for s in self._stations:
-                        to_and_from_cost = (
-                            self._sailing_costs[(t1, s)] + self._sailing_costs[(t2, s)]
-                        )
-                        to_and_from_costs[t1][t2][s] = to_and_from_cost
+                to_and_from_costs[t1][t2] = {}
+                for s in self._stations:
+                    to_and_from_cost = (
+                        self._sailing_costs[(t1, s)] + self._sailing_costs[(t2, s)]
+                    )
+                    to_and_from_costs[t1][t2][s] = round(to_and_from_cost, 2)
         return to_and_from_costs
