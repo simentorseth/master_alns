@@ -456,3 +456,37 @@ def random_solution(problem: Problem) -> Solution:
     solution.routes = routes
     solution.stations = stations
     return solution
+
+
+def cost_of_removal(
+    node: int, tour: list[int], station: int, stations: list[int], problem: Problem
+) -> float:
+    removal_cost = 0
+
+    if len(tour) == 0:
+        raise Exception("Empty tour when calculating removal cost!")
+
+    if len(tour) == 1:
+        removal_cost += problem.to_and_from_costs[node][node][station]
+        if stations.count(station) == 1:
+            removal_cost += problem.station_cost
+        return removal_cost
+
+    where_in_tour = tour.index(node)
+
+    # if the node to remove is at the start of the tour
+    if where_in_tour == 0:
+        # only the forward sailing cost contributes
+        removal_cost += problem.sailing_costs[node, tour[where_in_tour + 1]]
+    # if the node to remove is at the end of the tour
+    elif where_in_tour == len(tour) - 1:
+        # only the backward sailing cost contributes
+        removal_cost += problem.sailing_costs[tour[where_in_tour - 1], node]
+    # otherwise
+    else:
+        # the forward sailing cost contributes
+        removal_cost += problem.sailing_costs[node, tour[where_in_tour + 1]]
+        # and the backward sailing cost contributes
+        removal_cost += problem.sailing_costs[tour[where_in_tour - 1], node]
+
+    return removal_cost
