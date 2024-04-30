@@ -31,12 +31,17 @@ class Problem:
         self._num_stations = len(self._map["Substations"])
         self._turbines = self._map["Turbines"]
         self._stations = self._map["Substations"]
-        self._to_and_from_costs = self.compute_to_and_from_costs()
+        self._to_and_from_costs = self._calculate_to_and_from_costs()
         self._fixed_costs = [self._station_cost for _ in range(self._num_stations)]
+        self._similarity = self._calculate_similarity()
 
     @property
     def map(self) -> dict[int, list[int]]:
         return self._map
+
+    @property
+    def similarity(self) -> ...:
+        return self._similarity
 
     @property
     def num_vessels(self) -> int:
@@ -253,7 +258,7 @@ class Problem:
         assert len(mapping["Substations"]) == len(stations)
         return mapping
 
-    def compute_to_and_from_costs(self) -> dict[int, dict[int, dict[int, float]]]:
+    def _calculate_to_and_from_costs(self) -> dict[int, dict[int, dict[int, float]]]:
         to_and_from_costs = {}
         for t1 in self._turbines:
             to_and_from_costs[t1] = {}
@@ -265,3 +270,65 @@ class Problem:
                     )
                     to_and_from_costs[t1][t2][s] = round(to_and_from_cost, 2)
         return to_and_from_costs
+
+    def _calculate_similarity(self) -> ...:
+        # TODO: Calculate similarity matrices for demand and distance
+        import numpy as np
+
+        # Demand similarity
+        # Initialize the matrix with zeros
+        demand_similarity = np.zeros(
+            (self._num_turbines, self._num_turbines), dtype=float
+        )
+        # Get turbine demands
+        demands = {k: v for k, v in self._demands.items() if k not in self._stations}
+        demands = np.array(list(demands.values()))
+        # Adjust the matrix values based on demand differences
+        for i in range(self._num_turbines):
+            demand_similarity[i, :] += demands
+            demand_similarity[:, i] -= demands
+        # Apply absolute value to the matrix
+        demand_similarity = np.abs(demand_similarity)
+        # Normalize the matrix
+        demand_similarity = demand_similarity / np.max(demand_similarity)
+
+        # Distance similarity
+        # Initialize the matrix with zeros
+        distance_similarity = np.zeros(
+            (self._num_turbines, self._num_turbines), dtype=float
+        )
+        # Get turbine distances
+        distances = {
+            k: v
+            for k, v in self._distances.items()
+            if k[0] not in self._stations and k[1] not in self._stations
+        }
+        for (i, j), dist in distances.items():
+            distance_similarity[i - 1, j - 1] = dist
+            distance_similarity[j - 1, i - 1] = dist
+        # Normalize the matrix
+        distance_similarity = distance_similarity / np.max(distance_similarity)
+
+        # Travel time similarity
+        travel_time_similarity = np.zeros(
+            (self._num_turbines, self._num_turbines), dtype=float
+        )
+        # Get turbine travel_times
+        travel_times = {
+            k: v
+            for k, v in self._travel_times.items()
+            if k[0] not in self._stations and k[1] not in self._stations
+        }
+        for (i, j), travel_time in travel_times.items():
+            travel_time_similarity[i - 1, j - 1] = travel_time
+            travel_time_similarity[j - 1, i - 1] = travel_time
+        # Normalize the matrix
+        travel_time_similarity = travel_time_similarity / np.max(travel_time_similarity)
+
+        similarity = np.round(
+            0.3 * demand_similarity
+            + 0.6 * distance_similarity
+            + 0.1 * travel_time_similarity,
+            3,
+        )
+        return similarity.tolist()

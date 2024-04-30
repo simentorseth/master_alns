@@ -82,11 +82,12 @@ class Alns:
                 self._current = escape(self._current, q_escape, self.problem)
                 self._it_since_best = 0
 
-            random_num = random()  # <- move this to select_operator???
-            operator = self.select_operator(random_num)
-            # if len(self.operators) == 1:  # select_operator returns None, so...
-            #     operator = 0
-            q = randint(1, self._q_max)  # number of turbines to remove
+            operator = self.select_operator()
+
+            if operator == 0:
+                q = randint(2, self._q_max)
+            else:
+                q = randint(1, self._q_max)  # number of turbines to remove
             candidate = self.operators[operator](self._current, q, self.problem)
             # not sure if this needs to happen here
             # optimal station assignment does not take feasibility into account
@@ -152,7 +153,8 @@ class Alns:
     def update_best(self) -> None:
         raise NotImplementedError
 
-    def select_operator(self, random_num: float) -> int | None:
+    def select_operator(self) -> int | None:
+        random_num = random()
         return next(
             (i for i, x in enumerate(self._probability) if x > random_num), None
         )
