@@ -32,6 +32,7 @@ class Problem:
         self._turbines = self._map["Turbines"]
         self._stations = self._map["Substations"]
         self._to_and_from_costs = self.compute_to_and_from_costs()
+        self._fixed_costs = [self._station_cost for _ in range(self._num_stations)]
 
     @property
     def map(self) -> dict[int, list[int]]:
@@ -76,6 +77,10 @@ class Problem:
     @property
     def to_and_from_costs(self) -> dict[int, dict[int, dict[int, float]]]:
         return self._to_and_from_costs
+
+    @property
+    def fixed_costs(self) -> list[float]:
+        return self._fixed_costs
 
     @property
     def charge_capacity(self) -> float:

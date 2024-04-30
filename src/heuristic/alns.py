@@ -2,7 +2,14 @@ from copy import copy
 from heuristic.problem import Problem
 from heuristic.operators import optimal_stations, escape
 from heuristic.solution import Solution
-from heuristic.utils import cost, is_feasible
+from heuristic.utils import (
+    cost,
+    is_feasible,
+    initialise_model,
+    update_model,
+    get_to_and_from_costs,
+    get_station_assignment,
+)
 from itertools import accumulate
 from statistics import mean
 from random import random, randint
@@ -19,6 +26,9 @@ class Alns:
         max_no_improv: int = 1000,
     ) -> None:
         self.problem = problem
+        self.model, self.x, self.y = initialise_model(
+            problem.num_turbines, problem.num_stations
+        )
         self.operators = operators
         self.initial = initial
         self.max_iterations = max_iterations
@@ -80,7 +90,7 @@ class Alns:
             candidate = self.operators[operator](self._current, q, self.problem)
             # not sure if this needs to happen here
             # optimal station assignment does not take feasibility into account
-            candidate = optimal_stations(candidate, self.problem)
+            candidate = self.get_optimal_stations(candidate, self.problem)
             num_used_operators[operator] += 1
 
             if is_feasible(candidate, self.problem):
@@ -149,3 +159,17 @@ class Alns:
 
     def get_best(self) -> tuple[Solution, int]:
         return self._best, self._best_cost
+
+    def get_optimal_stations(self, solution: Solution, problem: Problem):
+        to_and_from_costs = get_to_and_from_costs(solution, problem)
+
+        self.model = update_model(
+            self.model, self.x, self.y, to_and_from_costs, problem.fixed_costs
+        )
+        assignment = get_station_assignment(
+            self.model, len(to_and_from_costs), problem.num_stations, problem
+        )
+
+        new_solution = copy(solution)
+        new_solution.stations = assignment
+        return new_solution

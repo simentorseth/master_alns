@@ -238,7 +238,7 @@ def get_to_and_from_costs_old(solution: Solution, problem: Problem):
     return table
 
 
-def initialise_model(to_and_from_costs: list[list[float]], fixed_costs: list[int]):
+def initialise_model_old(to_and_from_costs: list[list[float]], fixed_costs: list[int]):
     m = gp.Model("Optimal Station Assignment")
     x = m.addVars(
         [
@@ -272,6 +272,60 @@ def initialise_model(to_and_from_costs: list[list[float]], fixed_costs: list[int
         <= y[j] * len(to_and_from_costs)
         for j in range(len(fixed_costs))
     )
+    return m, x, y
+
+
+def initialise_model(num_tours: int, num_stations: int):
+    m = gp.Model("Optimal Station Assignment")
+    x = m.addVars(
+        [(i, j) for i in range(num_tours) for j in range(num_stations)],
+        vtype=gp.GRB.BINARY,
+        name="x",
+    )
+    y = m.addVars(
+        [j for j in range(num_stations)],
+        vtype=gp.GRB.BINARY,
+        name="y",
+    )
+    # Initially set placeholder objective with zeros which will be updated per iteration
+    m.setObjective(
+        gp.quicksum(0 * x[i, j] for i in range(num_tours) for j in range(num_stations))
+        + gp.quicksum(0 * y[j] for j in range(num_stations)),
+        gp.GRB.MINIMIZE,
+    )
+    m.addConstrs(
+        gp.quicksum(x[i, j] for j in range(num_stations)) == 1 for i in range(num_tours)
+    )
+    m.addConstrs(
+        gp.quicksum(x[i, j] for i in range(num_tours)) <= y[j] * num_tours
+        for j in range(num_stations)
+    )
+    return m, x, y
+
+
+def update_model(
+    m: gp.Model,
+    x: gp.Var,
+    y: gp.Var,
+    to_and_from_costs: list[list[float]],
+    fixed_costs: list[int],
+):
+    # Reset model to clear previous solution
+    m.reset()
+    for i, j in x.keys():
+        if i < len(to_and_from_costs):
+            x[i, j].obj = to_and_from_costs[i][j]
+        else:
+            x[i, j].obj = 0
+    # Update objective function coefficients
+    # for i, j in x.keys():
+    #     x[i, j].obj = to_and_from_costs[i][j]
+    for j in y.keys():
+        y[j].obj = fixed_costs[j]
+
+    # Optimize the model with the new parameters
+    m.optimize()
+
     return m
 
 
