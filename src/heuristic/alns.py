@@ -31,7 +31,8 @@ class Alns:
         self._weights = [0.5 for _ in range(len(self.operators))]
         self._probability = []
         self._r = 0.5  # predifined value to balance earlier weights
-        self._q_max = int(0.8 * len(problem.map["Turbines"]))
+        # TODO: Change this to depend on the problem size instead
+        self._q_max = int(0.5 * len(problem.map["Turbines"]))
         self._alpha = (0.033) ** (1 / self.max_iterations)
         self._scores = [0 for _ in range(len(self.operators))]
         self.update_probability()
