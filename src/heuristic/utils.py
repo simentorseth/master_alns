@@ -435,6 +435,28 @@ def charge_levels_are_feasible(tour: list[int], station: int, problem: Problem) 
     return True
 
 
+def feasible_tour(tour: list[int], station: int, problem: Problem) -> bool:
+    complete_tour = [station] + tour + [station]
+    charge = problem.charge_capacity
+    duration = 0
+    for i in range(len(complete_tour) - 1):
+        charge -= (
+            problem.distances[complete_tour[i], complete_tour[i + 1]]
+            * problem.consumption_rate
+        )
+        duration += (
+            problem.travel_times[complete_tour[i], complete_tour[i + 1]]
+            + problem.demands[complete_tour[i]]
+        )
+        if charge < 0 or charge > problem.charge_capacity:
+            return False  # no feasible insertions
+        if (
+            duration > 8.0  # should it be >= or strictly > ?
+        ):  # hard coded time window length, should be changed to problem specific:
+            return False  # no feasible insertionscharge = problem.charge_capacity
+    return True
+
+
 def feasible_inserts(
     tour: list[int], station: int, node: int, problem: Problem
 ) -> list[int]:
@@ -544,3 +566,87 @@ def cost_of_removal(
         removal_cost += problem.sailing_costs[tour[where_in_tour - 1], node]
 
     return removal_cost
+
+
+def initial_solution(problem: Problem) -> Solution:
+    # First: Clustering with the stations as centroids
+
+    cluster_assignment = [-1 for _ in range(problem.num_turbines)]
+
+    for i, node in enumerate(problem.turbines):
+        min_distance = float("inf")
+        assigned_station = -1
+        for j, station_idx in enumerate(problem.stations):
+            distance = problem.distances[node, station_idx]
+            if distance < min_distance:
+                min_distance = distance
+                assigned_station = j
+        cluster_assignment[i] = assigned_station
+
+    clustering = [[] for _ in range(problem.num_stations)]
+    for i, assignment in enumerate(cluster_assignment):
+        clustering[assignment].append(i + 1)
+
+    # Second: Clarke & Wright savings algorithm
+
+    solution = Solution()
+
+    for station_idx, cluster in enumerate(clustering):
+        station = problem.stations[station_idx]
+        # Initialize active routes set with all initial individual routes
+        active_routes = set(tuple([node]) for node in cluster)
+        # Route map to keep track of which route each node currently belongs to
+        routes = {node: [node] for node in cluster}
+        # Keep track of merged routes
+        merged_routes = set()
+        # Calculate savings
+        savings = {}
+        for node1 in cluster:
+            for node2 in cluster:
+                if node1 != node2:
+                    ordered_pair = tuple(sorted((node1, node2)))
+                    if ordered_pair not in savings:
+                        saving = (
+                            problem.distances[station, node1]
+                            + problem.distances[station, node2]
+                            - problem.distances[node1, node2]
+                        )
+                        savings[(node1, node2)] = saving
+        # Sort savings in descending order
+        sorted_savings = dict(sorted(savings.items(), key=lambda x: x[1], reverse=True))
+        for (i, j), saving in sorted_savings.items():
+            # Retrieve current routes for i and j
+            route_i = tuple(routes[i])
+            route_j = tuple(routes[j])
+
+            # Check if either route has been merged or if they are the same route
+            if (
+                route_i in merged_routes
+                or route_j in merged_routes
+                or route_i == route_j
+            ):
+                continue
+            # Check if i is the last element of its route and j is the first element of its route
+            if routes[i][-1] == i and routes[j][0] == j:
+                # Merge routes
+                new_route = routes[i] + routes[j]
+                new_route_tuple = tuple(new_route)
+                # Check if route is feasible
+                if feasible_tour(new_route, station, problem):
+                    # Update the route mapping to the new merged route for all involved nodes
+                    for node in routes[i] + routes[j]:
+                        routes[node] = new_route
+
+                    # Update active routes and merged routes tracking
+                    active_routes.discard(route_i)
+                    active_routes.discard(route_j)
+                    active_routes.add(new_route_tuple)
+                    merged_routes.add(route_i)
+                    merged_routes.add(route_j)
+        # Extend the initial solution
+        for tour in active_routes:
+            padded_tour = list(tour) + [0]
+            solution.routes.extend(padded_tour)
+            solution.stations.append(station)
+
+    return solution
