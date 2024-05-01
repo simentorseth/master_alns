@@ -8,6 +8,62 @@ from random import randint
 def is_feasible(solution: Solution, problem: Problem):
     routes = solution.routes
     stations = solution.stations
+
+    start_index = 0
+    tour_index = 0
+    for i in range(len(routes)):
+        if routes[i] == 0:  # Separator found, indicating the end of a tour
+            current_tour = routes[start_index:i]
+            if start_index < i:
+                # Check if the charge level and route duration is within limits
+                charge = problem.charge_capacity
+                duration = 0
+                for j in range(len(current_tour) + 1):
+                    if j == 0:
+                        # From station to first node
+                        distance = problem.distances[
+                            stations[tour_index], current_tour[j]
+                        ]
+                        travel_time = problem.travel_times[
+                            stations[tour_index], current_tour[j]
+                        ]
+                    elif j == len(current_tour):
+                        # From last node to station
+                        distance = problem.distances[
+                            stations[tour_index], current_tour[j - 1]
+                        ]
+                        travel_time = problem.travel_times[
+                            stations[tour_index], current_tour[j - 1]
+                        ]
+                    else:
+                        # From node to node
+                        distance = problem.distances[
+                            current_tour[j - 1], current_tour[j]
+                        ]
+                        travel_time = problem.travel_times[
+                            current_tour[j - 1], current_tour[j]
+                        ]
+
+                    charge -= distance * problem.consumption_rate
+                    duration += travel_time
+                    if charge < 0 or charge > problem.charge_capacity:
+                        return False
+                    if duration > 8.0:
+                        return False
+
+            # Update for next tour
+            start_index = i + 1
+            tour_index += 1
+
+    if tour_index > problem.num_vessels * problem.num_time_windows:
+        return False
+    return True
+
+
+@DeprecationWarning
+def feasible(solution: Solution, problem: Problem):
+    routes = solution.routes
+    stations = solution.stations
     separators = [i for i, x in enumerate(routes) if x == 0]
     idx = 0  # start index for current route
 
@@ -128,22 +184,20 @@ def cost(solution: Solution, problem: Problem):
     # this should work as intended
     routes = solution.routes
     stations = solution.stations
-    window = problem.time_window_assignments[0]
-    num_vessels = len(window)
-    num_stations = len(set(stations))
+    window = {w: [] for w in range(int(problem.num_time_windows))}
 
     total_cost = 0
 
-    # fixed costs
-    total_cost += (
-        num_vessels * problem.vessel_cost + num_stations * problem.station_cost
-    )
-
     # sailing costs
-    separators = [i for i, x in enumerate(routes + [0]) if x == 0]
+    separators = [i for i, x in enumerate(routes) if x == 0]
     idx = 0  # start index for current route
 
+    current_window = 0
     for i in range(len(separators)):
+        # assign tour to window
+        if len(window[current_window]) >= problem.num_vessels:
+            current_window += 1
+        window[current_window].append(i)
         # get the current route
         current_route = routes[idx : separators[i]]
         # adjust start index for next iteration
@@ -158,6 +212,14 @@ def cost(solution: Solution, problem: Problem):
             # add the sailing costs to and from the station
             total_cost += problem.sailing_costs[stations[i], current_route[0]]
             total_cost += problem.sailing_costs[current_route[-1], stations[i]]
+
+    # fixed costs
+    num_used_vessels = len(window[0])
+    num_stations = len(set(stations))
+
+    total_cost += (
+        num_used_vessels * problem.vessel_cost + num_stations * problem.station_cost
+    )
 
     return total_cost
 
