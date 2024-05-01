@@ -42,10 +42,15 @@ class Alns:
         self._probability = []
         self._r = 0.5  # predifined value to balance earlier weights
         # TODO: Change this to depend on the problem size instead
-        self._q_max = int(0.5 * len(problem.map["Turbines"]))
+        self._q_max = int(0.6 * len(problem.map["Turbines"]))
         self._alpha = (0.033) ** (1 / self.max_iterations)
         self._scores = [0 for _ in range(len(self.operators))]
         self.update_probability()
+        self._operator_usage: list[list[int]] = []
+        self._accepted_solutions: dict[int, float] = {}
+        self._last_update: int = 0
+        self._num_feasible: int = 0
+        self._best_costs: dict[int, float] = {}
 
     def single_run(self) -> tuple[Solution, int]:
         self.search()
@@ -71,6 +76,7 @@ class Alns:
         self._best = copy(self.initial)
         self._current_cost = cost(self._current, self.problem)
         self._best_cost = self._current_cost
+        self._best_costs[0] = self._best_cost
 
         num_used_operators = [0 for _ in range(len(self.operators))]
         explored = {self._current: self._current_cost}
@@ -95,12 +101,14 @@ class Alns:
             num_used_operators[operator] += 1
 
             if is_feasible(candidate, self.problem):
+                self._num_feasible += 1
                 candidate_cost = cost(candidate, self.problem)
                 is_explored = candidate in explored
                 if not is_explored:
                     explored[candidate] = candidate_cost
 
                 if candidate_cost < self._best_cost:
+                    self._last_update = i
                     self.update_scores(operator, candidate_cost, is_explored)
 
                 acceptance = (0.3 * self._alpha**i) + 1  # some number
@@ -108,13 +116,16 @@ class Alns:
                     candidate_cost < acceptance * self._best_cost
                     or candidate_cost < self._current_cost
                 ):
+                    self._accepted_solutions[i] = candidate_cost
                     self._current = candidate
                     self._current_cost = candidate_cost
                     if candidate_cost < self._best_cost:
+                        self._best_costs[i] = candidate_cost
                         self._best = candidate
                         self._best_cost = candidate_cost
 
             if i % 100 == 0:
+                self._operator_usage.append(num_used_operators)
                 self.update_weights(num_used_operators)
                 self.update_probability()
                 self.reset_scores()
