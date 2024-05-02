@@ -13,6 +13,7 @@ from heuristic.utils import (
 from itertools import accumulate
 from statistics import mean
 from random import random, randint
+import time
 
 
 class Alns:
@@ -42,7 +43,7 @@ class Alns:
         self._probability = []
         self._r = 0.5  # predifined value to balance earlier weights
         # TODO: Change this to depend on the problem size instead
-        self._q_max = int(0.6 * len(problem.map["Turbines"]))
+        self._q_max = int(0.9 * len(problem.map["Turbines"]))
         self._alpha = (0.033) ** (1 / self.max_iterations)
         self._scores = [0 for _ in range(len(self.operators))]
         self.update_probability()
@@ -57,19 +58,48 @@ class Alns:
         return self.get_best()
 
     def consecutive_run(self) -> tuple[Solution, int, list[float], float]:
-        best_cost = 0
-        best = None
-        results = []
+        all_time_best_cost = 0
+        all_time_best = None
+        best_costs_results = []
+        all_convergence_values = []
+        operator_usages = []
+        acceptance_rates = []
+        runtimes = []
 
         for i in range(10):
+            start_time = time.perf_counter()
             self.search()
-            current, current_cost = self.get_best()
-            results.append(current_cost)
-            if i == 0 or current_cost < best_cost:
-                best = current
-                best_cost = current_cost
+            current_best, current_best_cost = self.get_best()
+            end_time = time.perf_counter()
+            duration = end_time - start_time
+            runtimes.append(duration)
+            best_costs_results.append(current_best_cost)
+            all_convergence_values.append(self._best_costs)
+            operator_usages.append(self._operator_usage)
+            acceptance_rates.append(self._accepted_solutions)
+            if i == 0 or current_best_cost < all_time_best_cost:
+                all_time_best = current_best
+                all_time_best_cost = current_best_cost
+            # reset stuff
+            self._best_costs = {}
+            self._operator_usage = []
+            self._accepted_solutions = {}
+            self._weights = [0.5 for _ in range(len(self.operators))]
+            self._probability = []
+            self.update_probability()
+            self._scores = [0 for _ in range(len(self.operators))]
+            self._last_update: int = 0
+            self._num_feasible: int = 0
 
-        return best, best_cost, results, mean(results)
+        return (
+            all_time_best,
+            all_time_best_cost,
+            best_costs_results,
+            all_convergence_values,
+            operator_usages,
+            acceptance_rates,
+            runtimes,
+        )
 
     def search(self) -> None:
         self._current = copy(self.initial)
@@ -77,7 +107,6 @@ class Alns:
         self._current_cost = cost(self._current, self.problem)
         self._best_cost = self._current_cost
         self._best_costs[0] = self._best_cost
-
         num_used_operators = [0 for _ in range(len(self.operators))]
         explored = {self._current: self._current_cost}
 

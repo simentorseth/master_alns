@@ -200,10 +200,19 @@ def rand_remov_greed_insrt_operator(
     new_solution = Solution()
     new_solution.stations = copy(stations)
 
-    for i in range(len(tours)):
+    # for i in range(len(tours)):
+    #     if len(tours[i]) == 0:
+    #         new_solution.stations.pop(i)
+    #     else:
+    #         tours[i].append(0)
+    for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
+            # Remove the station corresponding to the empty tour
             new_solution.stations.pop(i)
+            # It's also a good practice to remove the empty tour itself
+            tours.pop(i)
         else:
+            # Append the delimiter 0 to non-empty tours
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
@@ -282,10 +291,19 @@ def greed_rand_remov_greed_insrt_operator(
     new_solution = Solution()
     new_solution.stations = copy(solution.stations)
 
-    for i in range(len(tours)):
+    # for i in range(len(tours)):
+    #     if len(tours[i]) == 0:
+    #         new_solution.stations.pop(i)
+    #     else:
+    #         tours[i].append(0)
+    for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
+            # Remove the station corresponding to the empty tour
             new_solution.stations.pop(i)
+            # It's also a good practice to remove the empty tour itself
+            tours.pop(i)
         else:
+            # Append the delimiter 0 to non-empty tours
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
@@ -354,10 +372,19 @@ def sim_rand_remov_greed_insrt_operator(
     new_solution = Solution()
     new_solution.stations = copy(solution.stations)
 
-    for i in range(len(tours)):
+    # for i in range(len(tours)):
+    #     if len(tours[i]) == 0:
+    #         new_solution.stations.pop(i)
+    #     else:
+    #         tours[i].append(0)
+    for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
+            # Remove the station corresponding to the empty tour
             new_solution.stations.pop(i)
+            # It's also a good practice to remove the empty tour itself
+            tours.pop(i)
         else:
+            # Append the delimiter 0 to non-empty tours
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
@@ -386,10 +413,19 @@ def escape(solution: Solution, num_remove: int, problem: Problem) -> Solution:
     new_solution = Solution()
     new_solution.stations = copy(solution.stations)
 
-    for i in range(len(tours)):
+    # for i in range(len(tours)):
+    #     if len(tours[i]) == 0:
+    #         new_solution.stations.pop(i)
+    #     else:
+    #         tours[i].append(0)
+    for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
+            # Remove the station corresponding to the empty tour
             new_solution.stations.pop(i)
+            # It's also a good practice to remove the empty tour itself
+            tours.pop(i)
         else:
+            # Append the delimiter 0 to non-empty tours
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
