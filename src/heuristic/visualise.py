@@ -79,8 +79,16 @@ def visualise(solution: Solution, problem: Problem):
     ax.tick_params(
         left=True, bottom=True, labelleft=True, labelbottom=True, labelsize=8
     )
-    ax.set_xlabel("Longitude")
-    ax.set_ylabel("Latitude")
+    
+    if problem.is_haversine:
+        ax.set_xlabel("Longitude")
+        ax.set_ylabel("Latitude")
+    else:
+        ax.set_aspect("equal")
+        ax.set_xlabel("X [m]")
+        ax.set_ylabel("Y [m]")
+        ax.set_xlim(0, 12000)
+        ax.set_ylim(0, 12000)
     ax.set_title(f"Route Visualisation\n{routes}\n{stations}")
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
