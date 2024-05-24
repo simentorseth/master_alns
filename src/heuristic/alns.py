@@ -11,8 +11,9 @@ from heuristic.utils import (
     get_station_assignment,
 )
 from itertools import accumulate
-from math import floor
+from math import floor, exp
 from random import random, randint
+from statistics import mean
 
 
 class Alns:
@@ -28,8 +29,10 @@ class Alns:
         for j in self.y.keys():
             self.y[j].obj = problem.fixed_costs[j]
 
+        # Parameters
         self._max_iterations = max_iterations
         self._max_iter_no_improve = max_iter_no_improve
+        self._warm_iter = 100
         self._iter_escape = iter_escape
         self._operators = operators
         self._initial = initial
@@ -38,9 +41,15 @@ class Alns:
         self._probabilities = []
         self._smooth_factor = 0.5  # predifined value to balance earlier weights
         self._q_max = floor(0.6 * self._problem.num_turbines)  # TODO: Test this
-        self._alpha = (0.033) ** (1 / self._max_iterations)
+        
         self._scores = [0 for _ in range(len(self._operators))]
         self.update_probability()
+
+        # Simulated Annealing Variables
+        self._initial_temperature = 0.0
+        self._temperature = 0.0
+        self._final_temperature = 0.1
+        self._alpha = 0
 
         # Variables
         self._current = None
@@ -66,8 +75,41 @@ class Alns:
         self._best_costs[0] = self._best_cost
         num_used_operators = [0 for _ in range(len(self._operators))]
         explored = {self._current: self._current_cost}
+        delta_w = [0 for _ in range(100)]
 
-        for i in range(self._max_iterations):
+        # warm up
+        for w in range(self._warm_iter):
+            operator = self.select_operator()
+            if operator == 0:
+                q = randint(2, self._q_max)
+            else:
+                q = randint(1, self._q_max)
+            
+            candidate = self._operators[operator](self._current, q, self._problem)
+            candidate = self.get_optimal_stations(candidate, self._problem)
+            num_used_operators[operator] += 1
+
+            if is_feasible(candidate, self._problem):
+                candidate_cost = cost(candidate, self._problem)
+                delta_e = candidate_cost - self._current_cost
+                if delta_e < 0:
+                    self._current = candidate
+                    self._current_cost = candidate_cost
+                    if self._current_cost < self._best_cost:
+                        self._best = self._current
+                        self._best_cost = self._current_cost
+                else:
+                    if random() < 0.8:
+                        self._current = candidate
+                        self._current_cost = candidate_cost
+                    
+                    delta_w[w] = delta_e
+        
+        self._initial_temperature = mean(delta_w) / 0.223
+        self._temperature = self._initial_temperature
+        self._alpha = (self._final_temperature / self._initial_temperature) ** (1 / (self._max_iterations - self._warm_iter))
+
+        for i in range(self._max_iterations - self._warm_iter):
             if i - self._iter_improve >= self._max_iter_no_improve:
                 break
             
@@ -86,40 +128,44 @@ class Alns:
             
             if candidate.routes.count(0) != len(candidate.stations):
                 raise ValueError(f"Iteration: {i}, Operator: {self._operators[operator]}, Candidate: {candidate}")
+            
             candidate = self.get_optimal_stations(candidate, self._problem)
             if 0 in candidate.stations:
                 raise ValueError(f"Iteration: {i}, Operator: {self._operators[operator]}, Candidate: {candidate}")
+            
             if candidate.routes.count(0) != len(candidate.stations):
                 raise ValueError(f"Iteration: {i}, Operator: {self._operators[operator]}, Candidate: {candidate}")
+            
             num_used_operators[operator] += 1
             
             if is_feasible(candidate, self._problem):
                 self._num_feasible += 1
                 
                 candidate_cost = cost(candidate, self._problem)
+                delta_e = candidate_cost - self._current_cost
 
                 is_explored = candidate in explored
                 if not is_explored:
                     explored[candidate] = candidate_cost
 
-                """
-                acceptance criteria start within 30% of the best solution thus far, 
-                and then decays exponentially over time to finally be within 1% 
-                of the best solution, similar to how the temperature is decayed in 
-                simulated annealing.
-                """
-                acceptance = (0.3 * self._alpha ** i) + 1
-                if candidate_cost < acceptance * self._best_cost or candidate_cost < self._current_cost:
-                    self._accepted_solutions[i] = candidate_cost
+                if delta_e < 0:
                     self._current = candidate
                     self._current_cost = candidate_cost
                     if candidate_cost < self._best_cost:
                         self._iter_improve = i
-                        self._best_costs[i] = candidate_cost
                         self._best = candidate
                         self._best_cost = candidate_cost
+                        self.update_scores(operator, candidate_cost, is_explored)
+                        # Update stats
+                        self._best_costs[i] = self._best_cost
+                else:
+                    if random() < exp(-delta_e / self._temperature):
+                        self._accepted_solutions[i] = candidate_cost
+                        self._current = candidate
+                        self._current_cost = candidate_cost
+                        self.update_scores(operator, candidate_cost, is_explored)
 
-                self.update_scores(operator, candidate_cost, is_explored)
+            self._temperature *= self._alpha
 
             if i % 100 == 0:
                 self._operator_usage.append(num_used_operators)
