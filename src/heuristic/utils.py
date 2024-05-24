@@ -55,19 +55,19 @@ def is_feasible(solution: Solution, problem: Problem):
                     charge -= distance * problem.consumption_rate
                     duration += travel_time + demand
                     if charge < 0 or charge > problem.charge_capacity:
-                        return False, f"Charge capacity exceeded: {charge}"
+                        return False
                     if duration > 8.0:
-                        return False, f"Route duration exceeded: {duration}"
+                        return False
 
             # Update for next tour
             start_index = i + 1
             tour_index += 1
 
     if tour_index > problem.num_vessels * problem.num_time_windows:
-        return False, f"#Tours > #Vessels * #Windows => {tour_index} > {problem.num_vessels} * {problem.num_time_windows}"
+        return False
     if tour_index != len(stations):
-        return False, f"#Tours ≠ #Stations => {tour_index} ≠ {len(stations)}"
-    return True, ""
+        return False
+    return True
 
 
 @DeprecationWarning
