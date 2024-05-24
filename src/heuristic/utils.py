@@ -6,6 +6,10 @@ from random import randint, shuffle, choices
 import os
 import csv
 
+from scipy.spatial.distance import cdist
+from sklearn.cluster import KMeans
+import numpy as np
+
 
 def is_feasible(solution: Solution, problem: Problem):
     routes = solution.routes
@@ -51,19 +55,19 @@ def is_feasible(solution: Solution, problem: Problem):
                     charge -= distance * problem.consumption_rate
                     duration += travel_time + demand
                     if charge < 0 or charge > problem.charge_capacity:
-                        return False
+                        return False, f"Charge capacity exceeded: {charge}"
                     if duration > 8.0:
-                        return False
+                        return False, f"Route duration exceeded: {duration}"
 
             # Update for next tour
             start_index = i + 1
             tour_index += 1
 
     if tour_index > problem.num_vessels * problem.num_time_windows:
-        return False
+        return False, f"#Tours > #Vessels * #Windows => {tour_index} > {problem.num_vessels} * {problem.num_time_windows}"
     if tour_index != len(stations):
-        return False
-    return True
+        return False, f"#Tours ≠ #Stations => {tour_index} ≠ {len(stations)}"
+    return True, ""
 
 
 @DeprecationWarning
@@ -343,8 +347,8 @@ def initialise_model_old(to_and_from_costs: list[list[float]], fixed_costs: list
     return m, x, y
 
 
-def initialise_model(num_tours: int, num_stations: int):
-    m = gp.Model("Optimal Station Assignment")
+def initialise_model(num_tours: int, num_stations: int, env):
+    m = gp.Model("Optimal Station Assignment", env)
     x = m.addVars(
         [(i, j) for i in range(num_tours) for j in range(num_stations)],
         vtype=gp.GRB.BINARY,
@@ -368,6 +372,7 @@ def initialise_model(num_tours: int, num_stations: int):
         gp.quicksum(x[i, j] for i in range(num_tours)) <= y[j] * num_tours
         for j in range(num_stations)
     )
+
     return m, x, y
 
 
@@ -388,8 +393,8 @@ def update_model(
     # Update objective function coefficients
     # for i, j in x.keys():
     #     x[i, j].obj = to_and_from_costs[i][j]
-    for j in y.keys():
-        y[j].obj = fixed_costs[j]
+    # for j in y.keys():
+    #     y[j].obj = fixed_costs[j]
 
     # Optimize the model with the new parameters
     m.optimize()
@@ -407,8 +412,12 @@ def get_station_assignment(
     x_values = model.getAttr("X", model.getVars())
 
     # Create a 2D matrix to store the values of x[i, j]
+    # assignment_matrix = [
+    #     [int(x_values[i * num_destinations + j]) for j in range(num_destinations)]
+    #     for i in range(num_sources)
+    # ]
     assignment_matrix = [
-        [int(x_values[i * num_destinations + j]) for j in range(num_destinations)]
+        [1 if x_values[i * num_destinations + j] > 0.5 else 0 for j in range(num_destinations)]
         for i in range(num_sources)
     ]
     # Get the assignment of stations to each tour
@@ -759,9 +768,18 @@ def save_run(
     avg_objective_value: float,
     avg_runtime: float,
     problem: Problem,
+    num_stations: int=0,
 ):
     with open(path, "a", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(
-            [problem._filename, objective_value, avg_objective_value, avg_runtime]
-        )
+        if num_stations == 0:
+            writer.writerow(
+                [problem._filename, objective_value, avg_objective_value, avg_runtime]
+            )
+        else:
+            writer.writerow(
+                [problem._filename, num_stations, objective_value, avg_objective_value, avg_runtime]
+            )
+        # writer.writerow(
+        #     [problem._filename, objective_value, avg_objective_value, avg_runtime]
+        # )

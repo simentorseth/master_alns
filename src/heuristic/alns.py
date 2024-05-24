@@ -16,7 +16,7 @@ from random import random, randint
 
 
 class Alns:
-    def __init__(self, problem: Problem, operators: list[callable], initial: Solution,
+    def __init__(self, problem: Problem, operators: list[callable], initial: Solution, env,
         *,
         max_iterations = 10000,
         max_iter_no_improve = 10000,
@@ -24,7 +24,10 @@ class Alns:
     ) -> None:
         # Initialisation
         self._problem = problem
-        self._model, self.x, self.y = initialise_model(problem.num_turbines, problem.num_stations)
+        self._model, self.x, self.y = initialise_model(problem.num_turbines, problem.num_stations, env)
+        for j in self.y.keys():
+            self.y[j].obj = problem.fixed_costs[j]
+
         self._max_iterations = max_iterations
         self._max_iter_no_improve = max_iter_no_improve
         self._iter_escape = iter_escape
@@ -80,13 +83,16 @@ class Alns:
                 q = randint(1, self._q_max)  # number of turbines to remove
             
             candidate = self._operators[operator](self._current, q, self._problem)
+            
             if candidate.routes.count(0) != len(candidate.stations):
                 raise ValueError(f"Iteration: {i}, Operator: {self._operators[operator]}, Candidate: {candidate}")
             candidate = self.get_optimal_stations(candidate, self._problem)
+            if 0 in candidate.stations:
+                raise ValueError(f"Iteration: {i}, Operator: {self._operators[operator]}, Candidate: {candidate}")
             if candidate.routes.count(0) != len(candidate.stations):
                 raise ValueError(f"Iteration: {i}, Operator: {self._operators[operator]}, Candidate: {candidate}")
             num_used_operators[operator] += 1
-
+            
             if is_feasible(candidate, self._problem):
                 self._num_feasible += 1
                 
