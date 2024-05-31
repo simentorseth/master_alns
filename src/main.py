@@ -29,6 +29,7 @@ def run_once(solution: Solution, operators: list[callable], problem: Problem, en
     best_solution, best_cost = alns.run()
     end_time = time.perf_counter()
     duration = end_time - start_time
+    print(f"Last update: {alns._iter_improve}")
 
     try:
         assert is_feasible(best_solution, problem)
