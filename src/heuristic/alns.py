@@ -19,8 +19,8 @@ from statistics import mean
 class Alns:
     def __init__(self, problem: Problem, operators: list[callable], initial: Solution, env,
         *,
-        max_iterations = 10000,
-        max_iter_no_improve = 10000,
+        max_iterations = 12500,
+        max_iter_no_improve = 8000,
         iter_escape = 1000,
     ) -> None:
         # Initialisation
@@ -177,7 +177,7 @@ class Alns:
     def update_scores(self, operator: int, cost: int, unexplored: bool) -> None:
         if cost < self._best_cost:
             self._scores[operator] += 4
-            self._iter_improve = 0
+            #self._iter_improve = 0
         elif cost < self._current_cost:
             self._scores[operator] += 2
         elif unexplored:
