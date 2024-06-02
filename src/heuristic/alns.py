@@ -19,7 +19,7 @@ from statistics import mean
 class Alns:
     def __init__(self, problem: Problem, operators: list[callable], initial: Solution, env,
         *,
-        max_iterations = 12500,
+        max_iterations = 10000,
         max_iter_no_improve = 8000,
         iter_escape = 1000,
     ) -> None:
@@ -32,7 +32,6 @@ class Alns:
         # Parameters
         self._max_iterations = max_iterations
         self._max_iter_no_improve = max_iter_no_improve
-        self._warm_iter = 100
         self._iter_escape = iter_escape
         self._operators = operators
         self._initial = initial
@@ -40,16 +39,10 @@ class Alns:
         self._weights = [0.5 for _ in range(len(self._operators))]
         self._probabilities = []
         self._smooth_factor = 0.5  # predifined value to balance earlier weights
-        self._q_max = floor(0.6 * self._problem.num_turbines)  # TODO: Test this
+        self._q_max = floor(0.6 * self._problem.num_turbines)
         
         self._scores = [0 for _ in range(len(self._operators))]
         self.update_probability()
-
-        # Simulated Annealing Variables
-        self._initial_temperature = 0.0
-        self._temperature = 0.0
-        self._final_temperature = 0.1
-        self._alpha = 0
 
         # Variables
         self._current = None
@@ -62,6 +55,7 @@ class Alns:
         self._accepted_solutions: dict[int, float] = {}
         self._num_feasible: int = 0
         self._best_costs: dict[int, float] = {}
+        self._stopped_early: bool = False
 
     def run(self) -> tuple[Solution, float]:
         self.search()
@@ -75,42 +69,10 @@ class Alns:
         self._best_costs[0] = self._best_cost
         num_used_operators = [0 for _ in range(len(self._operators))]
         explored = {self._current: self._current_cost}
-        delta_w = [0 for _ in range(100)]
-
-        # warm up
-        for w in range(self._warm_iter):
-            operator = self.select_operator()
-            if operator == 0:
-                q = randint(2, self._q_max)
-            else:
-                q = randint(1, self._q_max)
-            
-            candidate = self._operators[operator](self._current, q, self._problem)
-            candidate = self.get_optimal_stations(candidate, self._problem)
-            num_used_operators[operator] += 1
-
-            if is_feasible(candidate, self._problem):
-                candidate_cost = cost(candidate, self._problem)
-                delta_e = candidate_cost - self._current_cost
-                if delta_e < 0:
-                    self._current = candidate
-                    self._current_cost = candidate_cost
-                    if self._current_cost < self._best_cost:
-                        self._best = self._current
-                        self._best_cost = self._current_cost
-                else:
-                    if random() < 0.8:
-                        self._current = candidate
-                        self._current_cost = candidate_cost
-                    
-                    delta_w[w] = delta_e
         
-        self._initial_temperature = mean(delta_w) / 0.223
-        self._temperature = self._initial_temperature
-        self._alpha = (self._final_temperature / self._initial_temperature) ** (1 / (self._max_iterations - self._warm_iter))
-
-        for i in range(self._max_iterations - self._warm_iter):
+        for i in range(self._max_iterations):
             if i - self._iter_improve >= self._max_iter_no_improve:
+                self._stopped_early = True
                 break
             
             if i % self._iter_escape == 0 and i != 0:
@@ -142,31 +104,26 @@ class Alns:
                 self._num_feasible += 1
                 
                 candidate_cost = cost(candidate, self._problem)
-                delta_e = candidate_cost - self._current_cost
 
                 is_explored = candidate in explored
                 if not is_explored:
                     explored[candidate] = candidate_cost
 
-                if delta_e < 0:
+                if candidate_cost < self._current_cost or candidate_cost < self._best_cost + self.deviation(i):
                     self._current = candidate
                     self._current_cost = candidate_cost
+                    # Update stats
+                    self._accepted_solutions[i] = candidate_cost
+
                     if candidate_cost < self._best_cost:
                         self._iter_improve = i
                         self._best = candidate
                         self._best_cost = candidate_cost
-                        self.update_scores(operator, candidate_cost, is_explored)
                         # Update stats
                         self._best_costs[i] = self._best_cost
-                else:
-                    if random() < exp(-delta_e / self._temperature):
-                        self._accepted_solutions[i] = candidate_cost
-                        self._current = candidate
-                        self._current_cost = candidate_cost
-                        self.update_scores(operator, candidate_cost, is_explored)
-
-            self._temperature *= self._alpha
-
+                
+                self.update_scores(operator, candidate_cost, is_explored)
+                
             if i % 100 == 0:
                 self._operator_usage.append(num_used_operators)
                 self.update_weights(num_used_operators)
@@ -177,7 +134,6 @@ class Alns:
     def update_scores(self, operator: int, cost: int, unexplored: bool) -> None:
         if cost < self._best_cost:
             self._scores[operator] += 4
-            #self._iter_improve = 0
         elif cost < self._current_cost:
             self._scores[operator] += 2
         elif unexplored:
@@ -199,6 +155,9 @@ class Alns:
         self._probabilities = list(
             accumulate([weight / sum(self._weights) for weight in self._weights])
         )
+
+    def deviation(self, iteration: int) -> float:
+        return 0.2 * ((self._max_iterations - iteration) / self._max_iterations) * self._best_cost
     
     def reset_scores(self) -> None:
         self._scores = [0 for _ in range(len(self._operators))]
@@ -233,6 +192,7 @@ class Alns:
         stats["num_feasible"] = self._num_feasible
         stats["best_costs"] = self._best_costs
         stats["last_update"] = self._iter_improve
+        stats["stopped_early"] = self._stopped_early
 
         return stats
     
@@ -245,5 +205,4 @@ class Alns:
             "probabilities": self._probabilities,
             "smooth_factor": self._smooth_factor,
             "q_max": self._q_max,
-            "alpha": self._alpha,
         }
