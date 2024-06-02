@@ -1,5 +1,6 @@
 from heuristic.problem import Problem
 from heuristic.solution import Solution
+from heuristic.utils import findmin
 
 
 def create_initial_solution(problem: Problem) -> Solution:
@@ -36,18 +37,20 @@ def create_initial_solution(problem: Problem) -> Solution:
                     demand = problem.demands[tour[-1]]
                     consumed_charge = distance * problem.consumption_rate
 
-                    duration += travel_time + demand
-                    charge_level -= consumed_charge
+                    # duration += travel_time + demand
+                    # charge_level -= consumed_charge
 
-                    if duration <= 8 and charge_level >= 0 and charge_level <= problem.charge_capacity:
-                        distance = problem.distances[turbine, tour[0]]
-                        travel_time = problem.travel_times[turbine, tour[0]]
-                        demand = problem.demands[turbine]
-                        consumed_charge = distance * problem.consumption_rate
+                    if duration + travel_time + demand <= 8 and charge_level - consumed_charge >= 0:
+                        final_distance = problem.distances[turbine, tour[0]]
+                        final_travel_time = problem.travel_times[turbine, tour[0]]
+                        final_demand = problem.demands[turbine]
+                        final_consumed_charge = final_distance * problem.consumption_rate
 
-                        final_duration = duration + travel_time + demand
-                        final_charge_level = charge_level - consumed_charge
-                        if final_duration <= 8 and final_charge_level >= 0 and final_charge_level <= problem.charge_capacity: 
+                        final_duration = duration + travel_time + demand + final_travel_time + final_demand
+                        final_charge_level = charge_level - consumed_charge - final_consumed_charge
+                        if final_duration <= 8 and final_charge_level >= 0 and final_charge_level <= problem.charge_capacity:
+                            duration += travel_time + demand
+                            charge_level -= consumed_charge
                             tour.append(turbine)
                             unassigned.remove(turbine)
 
