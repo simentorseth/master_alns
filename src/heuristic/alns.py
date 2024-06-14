@@ -11,17 +11,16 @@ from heuristic.utils import (
     get_station_assignment,
 )
 from itertools import accumulate
-from math import floor, exp
+from math import floor
 from random import random, randint
-from statistics import mean
 
 
 class Alns:
     def __init__(self, problem: Problem, operators: list[callable], initial: Solution, env,
         *,
-        max_iterations = 10000,
-        max_iter_no_improve = 8000,
-        iter_escape = 1000,
+        max_iterations = 12500,
+        max_iter_no_improve = 9000,
+        iter_escape = 800,
     ) -> None:
         # Initialisation
         self._problem = problem
@@ -38,8 +37,8 @@ class Alns:
         self._iter_improve = 0
         self._weights = [0.5 for _ in range(len(self._operators))]
         self._probabilities = []
-        self._smooth_factor = 0.5  # predifined value to balance earlier weights
-        self._q_max = floor(0.6 * self._problem.num_turbines)
+        self._smooth_factor = 0.3  # predifined value to balance earlier weights
+        self._q_max = floor(0.5 * self._problem.num_turbines)
         
         self._scores = [0 for _ in range(len(self._operators))]
         self.update_probability()
@@ -76,7 +75,7 @@ class Alns:
                 break
             
             if i % self._iter_escape == 0 and i != 0:
-                q_escape = max(5, self._q_max)
+                q_escape = floor(1.0 * self._problem.num_turbines)
                 self._current = escape(self._current, q_escape, self._problem)
 
             operator = self.select_operator()
@@ -133,7 +132,7 @@ class Alns:
 
     def update_scores(self, operator: int, cost: int, unexplored: bool) -> None:
         if cost < self._best_cost:
-            self._scores[operator] += 4
+            self._scores[operator] += 6
         elif cost < self._current_cost:
             self._scores[operator] += 2
         elif unexplored:
