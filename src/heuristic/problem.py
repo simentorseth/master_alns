@@ -1,12 +1,12 @@
 from haversine import haversine
+import os
 
 
 class Problem:
-    def __init__(
-        self,
-        file,
-    ) -> None:
+    def __init__(self, file, haversine: bool = False) -> None:
+        self._filename = os.path.basename(file)[:-4]
         self._instance = self._read_file(file)
+        self.is_haversine = haversine
         (
             self._num_vessels,
             self._charge_capacity,
@@ -20,7 +20,11 @@ class Problem:
         self._nodes = self._get_nodes()
         self._map = self._get_map()
         self._demands = self._get_demands()
-        self._distances = self._calculate_haversine()
+        self._distances = (
+            self._calculate_haversine()
+            if self.is_haversine
+            else self._calculate_distances()
+        )
         self._travel_times = self._calculate_travel_times()
         self._sailing_costs = self._calculate_sailing_costs()
         self._time_windows = self._create_time_windows()
@@ -153,11 +157,10 @@ class Problem:
         else:
             self._time_window_assignments[idx] = [tour]
 
-    @DeprecationWarning
     def _calculate_distances(self) -> dict[tuple[int, int], float]:
         turbines = self._get_locations("Turbine")
         stations = self._get_locations("Substation")
-        nodes = {node: coord for node, coord in enumerate(turbines + stations)}
+        nodes = {node + 1: coord for node, coord in enumerate(turbines + stations)}
         distances = {}
         for i, coord1 in nodes.items():
             for j, coord2 in nodes.items():
@@ -177,7 +180,7 @@ class Problem:
     def _calculate_travel_times(self) -> dict[tuple[int, int], float]:
         return {
             (i, j): round(
-                (self._distances[(i, j)] / self._velocity) / 3600, 3
+                self._distances[(i, j)] / (self._velocity * 1852), 3
             )  # NB: this rounding may be to small
             for i, j in self._distances
         }
@@ -192,11 +195,18 @@ class Problem:
 
     def _get_locations(self, kind: str) -> list[tuple[float, float]]:
         locations = []
-        for row in self._instance:
-            if row:
-                if row[-1] == kind:
-                    longitude, latitude = float(row[3]), float(row[2])
-                    locations.append((longitude, latitude))
+        if self.is_haversine:
+            for row in self._instance:
+                if row:
+                    if row[-1] == kind:
+                        longitude, latitude = float(row[3]), float(row[2])
+                        locations.append((longitude, latitude))
+        else:
+            for row in self._instance:
+                if row:
+                    if row[-1] == kind:
+                        x, y = float(row[2]), float(row[3])
+                        locations.append((x, y))
         return locations
 
     def _get_demands(self) -> dict[int, float]:
@@ -208,12 +218,20 @@ class Problem:
 
     def _get_nodes(self) -> dict[int, tuple[float, float]]:
         node_map = {}
-        for row in self._instance:
-            if row:
-                node_map[int(row[0]) + 1] = (
-                    float(row[3]),
-                    float(row[2]),
-                )  # (longitude, latitude)
+        if self.is_haversine:
+            for row in self._instance:
+                if row:
+                    node_map[int(row[0]) + 1] = (
+                        float(row[3]),
+                        float(row[2]),
+                    )  # (longitude, latitude)
+        else:
+            for row in self._instance:
+                if row:
+                    node_map[int(row[0]) + 1] = (
+                        float(row[2]),
+                        float(row[3]),
+                    )  # (x, y)
         return node_map
 
     def _create_time_windows(self):
@@ -246,12 +264,15 @@ class Problem:
         return lines[1:]  # skip header
 
     def _get_map(self) -> dict[int, list[int]]:
+
+        seen = set()
         turbines = self._get_locations("Turbine")
         stations = self._get_locations("Substation")
         mapping = {"Turbines": [], "Substations": []}
         for k, v in self._nodes.items():
-            if v in turbines:
+            if v in turbines and not v in seen:
                 mapping["Turbines"].append(k)
+                seen.add(v)
             else:
                 mapping["Substations"].append(k)
         assert len(mapping["Turbines"]) == len(turbines)

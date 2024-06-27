@@ -14,7 +14,6 @@ from heuristic.utils import (
 
 
 def swap(elements, index1, index2):
-    # TODO: Should this modify inplace instead?
     elements_copy = elements[:]  # shallow copy
     temp1, temp2 = elements_copy[index1], elements_copy[index2]
     elements_copy[index1], elements_copy[index2] = temp2, temp1
@@ -48,7 +47,7 @@ def shaw_selection(values, options, exclude, p, reverse=False):
 
     return node
 
-
+@DeprecationWarning
 def optimal_stations(solution: Solution, problem: Problem) -> Solution:
     to_and_from_costs = get_to_and_from_costs(solution, problem)
     fixed_costs = [problem._station_cost for _ in range(len(problem.stations))]
@@ -200,11 +199,6 @@ def rand_remov_greed_insrt_operator(
     new_solution = Solution()
     new_solution.stations = copy(stations)
 
-    # for i in range(len(tours)):
-    #     if len(tours[i]) == 0:
-    #         new_solution.stations.pop(i)
-    #     else:
-    #         tours[i].append(0)
     for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
             # Remove the station corresponding to the empty tour
@@ -216,13 +210,15 @@ def rand_remov_greed_insrt_operator(
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
-
+    assert new_solution.routes.count(0) == len(new_solution.stations)
     return new_solution
 
 
 def greed_rand_remov_greed_insrt_operator(
     solution: Solution, num_to_remove: int, problem: Problem
 ) -> Solution:
+    new_solution = copy(solution)
+
     removal_costs = [0.0 for _ in range(problem.num_turbines)]
     tours = []
     current_route = []
@@ -236,8 +232,8 @@ def greed_rand_remov_greed_insrt_operator(
                     removal_cost = cost_of_removal(
                         node,
                         current_route,
-                        solution.stations[current_station_index],
-                        solution.stations,
+                        new_solution.stations[current_station_index],
+                        new_solution.stations,
                         problem,
                     )
                     removal_costs[node - 1] = removal_cost
@@ -257,8 +253,8 @@ def greed_rand_remov_greed_insrt_operator(
 
         # actually remove it here
     for node in to_remove:
-        node_idx = solution.routes.index(node)
-        remove_tour_idx = solution.routes[: node_idx + 1].count(0)
+        node_idx = new_solution.routes.index(node)
+        remove_tour_idx = new_solution.routes[: node_idx + 1].count(0)
         remove_tour = tours[remove_tour_idx]
         remove_tour.remove(node)
 
@@ -270,11 +266,15 @@ def greed_rand_remov_greed_insrt_operator(
         insert = None
         for i, current_tour in enumerate(tours):
             insert_indices = feasible_inserts(
-                current_tour, solution.stations[i], node, problem
+                current_tour, new_solution.stations[i], node, problem
             )
             if len(insert_indices) > 0:
                 costs = insertion_costs(
-                    current_tour, solution.stations[i], node, insert_indices, problem
+                    current_tour,
+                    new_solution.stations[i],
+                    node,
+                    insert_indices,
+                    problem,
                 )
                 curr_min_cost, idx = findmin(costs)
                 if curr_min_cost < min_cost:
@@ -284,18 +284,10 @@ def greed_rand_remov_greed_insrt_operator(
         if tour is None and insert is None:
             new_tour = [node]
             tours.append(new_tour)
-            solution.stations.append(choice(problem.map["Substations"]))
+            new_solution.stations.append(choice(problem.map["Substations"]))
             continue
         tours[tour].insert(insert, node)
 
-    new_solution = Solution()
-    new_solution.stations = copy(solution.stations)
-
-    # for i in range(len(tours)):
-    #     if len(tours[i]) == 0:
-    #         new_solution.stations.pop(i)
-    #     else:
-    #         tours[i].append(0)
     for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
             # Remove the station corresponding to the empty tour
@@ -308,12 +300,17 @@ def greed_rand_remov_greed_insrt_operator(
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
 
+    assert new_solution.routes.count(0) == len(new_solution.stations)
+
     return new_solution
 
 
 def sim_rand_remov_greed_insrt_operator(
     solution: Solution, num_to_remove: int, problem: Problem
 ) -> Solution:
+
+    new_solution = copy(solution)
+
     assert num_to_remove >= 2
 
     # removal_costs = [0.0 for _ in range(problem.num_turbines)]
@@ -338,8 +335,8 @@ def sim_rand_remov_greed_insrt_operator(
 
         # actually remove it here
     for node in to_remove:
-        node_idx = solution.routes.index(node)
-        remove_tour_idx = solution.routes[: node_idx + 1].count(0)
+        node_idx = new_solution.routes.index(node)
+        remove_tour_idx = new_solution.routes[: node_idx + 1].count(0)
         remove_tour = tours[remove_tour_idx]
         remove_tour.remove(node)
 
@@ -351,11 +348,15 @@ def sim_rand_remov_greed_insrt_operator(
         insert = None
         for i, current_tour in enumerate(tours):
             insert_indices = feasible_inserts(
-                current_tour, solution.stations[i], node, problem
+                current_tour, new_solution.stations[i], node, problem
             )
             if len(insert_indices) > 0:
                 costs = insertion_costs(
-                    current_tour, solution.stations[i], node, insert_indices, problem
+                    current_tour,
+                    new_solution.stations[i],
+                    node,
+                    insert_indices,
+                    problem,
                 )
                 curr_min_cost, idx = findmin(costs)
                 if curr_min_cost < min_cost:
@@ -365,18 +366,10 @@ def sim_rand_remov_greed_insrt_operator(
         if tour is None and insert is None:
             new_tour = [node]
             tours.append(new_tour)
-            solution.stations.append(choice(problem.map["Substations"]))
+            new_solution.stations.append(choice(problem.map["Substations"]))
             continue
         tours[tour].insert(insert, node)
 
-    new_solution = Solution()
-    new_solution.stations = copy(solution.stations)
-
-    # for i in range(len(tours)):
-    #     if len(tours[i]) == 0:
-    #         new_solution.stations.pop(i)
-    #     else:
-    #         tours[i].append(0)
     for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
             # Remove the station corresponding to the empty tour
@@ -389,16 +382,22 @@ def sim_rand_remov_greed_insrt_operator(
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
 
+    assert new_solution.routes.count(0) == len(new_solution.stations)
+  
     return new_solution
 
 
 def escape(solution: Solution, num_remove: int, problem: Problem) -> Solution:
-    removed, tours = random_removal(solution, num_remove, problem)
+
+    new_solution = copy(solution)
+
+    removed, tours = random_removal(new_solution, num_remove, problem)
+
     for node in removed:
         inserted = False
         for i, current_tour in enumerate(tours):
             insert_indices = feasible_inserts(
-                current_tour, solution.stations[i], node, problem
+                current_tour, new_solution.stations[i], node, problem
             )
             if len(insert_indices) > 0:
                 current_tour.insert(choice(insert_indices), node)
@@ -408,16 +407,8 @@ def escape(solution: Solution, num_remove: int, problem: Problem) -> Solution:
             # raise Exception("No feasible insertions found")
             new_tour = [node]
             tours.append(new_tour)
-            solution.stations.append(choice(problem.stations))
+            new_solution.stations.append(choice(problem.stations))
 
-    new_solution = Solution()
-    new_solution.stations = copy(solution.stations)
-
-    # for i in range(len(tours)):
-    #     if len(tours[i]) == 0:
-    #         new_solution.stations.pop(i)
-    #     else:
-    #         tours[i].append(0)
     for i in reversed(range(len(tours))):
         if len(tours[i]) == 0:
             # Remove the station corresponding to the empty tour
@@ -429,5 +420,7 @@ def escape(solution: Solution, num_remove: int, problem: Problem) -> Solution:
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
+    
+    assert new_solution.routes.count(0) == len(new_solution.stations)
 
     return new_solution

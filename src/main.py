@@ -1,94 +1,98 @@
 from heuristic.alns import Alns
+
+from heuristic.problem import Problem
+from heuristic.solution import Solution
+from heuristic.initial import create_initial_solution
 from heuristic.operators import (
     rand_remov_greed_insrt_operator,
     greed_rand_remov_greed_insrt_operator,
     sim_rand_remov_greed_insrt_operator,
 )
-from heuristic.problem import Problem
-from heuristic.solution import Solution
-from heuristic.utils import is_feasible, initial_solution, random_solution
-from heuristic.visualise import visualise
-import random
-from heuristic.stats import (
-    plot_operator_usage,
-    plot_acceptance_rate,
-    plot_convergence,
-    plot_average_convergence,
-    plot_average_operator_usage,
+from heuristic.utils import (
+    is_feasible,
+    cost,
+    save_result,
+    save_solution,
+    save_statistics,
 )
+
+import gurobipy as gp
+
+from statistics import mean
 import time
-from statistics import mean, median, variance
+import random
+import argparse
+import os
 
 
-def run_single(
-    solution: Solution, operators: list[callable], problem: Problem, *, statistics=False
-) -> None:
-    alns = Alns(problem, operators, solution)
+def run_once(solution: Solution, operators: list[callable], problem: Problem, env) -> None:
+    alns = Alns(problem, operators, solution, env)
     start_time = time.perf_counter()
-    best, best_cost = alns.single_run()
+    best_solution, best_cost = alns.run()
     end_time = time.perf_counter()
     duration = end_time - start_time
-    assert is_feasible(best, problem)
-    print(f"Best solution:")
-    print(f"Routes: {best.routes}")
-    print(f"Stations: {best.stations}")
-    print(f"Cost: {best_cost}")
-    print(f"Runtime: {duration:.2f}s")
-    print("\n")
 
-    if statistics:
-        plot_operator_usage(alns._operator_usage, operators)
-        plot_acceptance_rate(alns._accepted_solutions, alns.max_iterations)
-        plot_convergence(alns._best_costs, alns.max_iterations)
-        print(f"Number of feasible solutions: {alns._num_feasible}")
-        print(f"Last iteration where best cost was updated: {alns._last_update}")
-    ans = input("Do you want to visualise the best solution? (y/n): ").lower()
-    if ans == "y":
-        visualise(best, problem)
-    else:
-        print("Exiting program...")
+    try:
+        assert is_feasible(best_solution, problem)
+        assert cost(best_solution, problem) == best_cost
+
+        print(f"Best solution:")
+        print(best_solution)
+        print(f"Cost: {best_cost}")
+        print(f"Runtime: {duration:.2f}s")
+        print("\n")
+    except AssertionError:
+        print(f"{problem._filename} is infeasible!!!")
+        if cost(best_solution, problem) != best_cost:
+            print("Cost mismatch!!!")
+            print("Cost: ", best_cost)
+            print("Calculated cost: ", cost(best_solution, problem))
+            print(best_solution)
 
 
-def run_consecutive(
-    solution: Solution, operators: list[callable], problem: Problem, statistics=False
-) -> None:
-    alns = Alns(problem, operators, solution)
-    (
-        all_time_best,
-        all_time_best_cost,
-        best_costs,
-        all_convergences,
-        all_operator_usages,
-        all_accepted_solutions,
-        runtimes,
-    ) = alns.consecutive_run()
-    assert is_feasible(all_time_best, problem)
-    print(f"Best solution:")
-    print(f"Routes: {all_time_best.routes}")
-    print(f"Stations: {all_time_best.stations}")
-    print(f"Cost: {all_time_best_cost}")
-    print(f"Average Runtime: {mean(runtimes):.2f}s")
-    print("\n")
+def run_ten(solution: Solution, operators: list[callable], problem: Problem, env):
+    all_time_best_solution = None
+    all_time_best_cost = float("inf")
+    costs = []
+    runtimes = []
+    stats = []
 
-    if statistics:
-        plot_average_convergence(all_convergences, alns.max_iterations)
-        plot_average_operator_usage(all_operator_usages, operators)
+    for i in range(10):
+        alns = Alns(problem, operators, solution, env)
+        start_time = time.perf_counter()
+        best_solution, best_cost = alns.run()
+        end_time = time.perf_counter()
+        duration = end_time - start_time
 
-        print(f"Mean best cost: {mean(best_costs)}")
-        print(f"Median best cost: {median(sorted(best_costs))}")
-        print(f"Best cost variance: {variance(best_costs)}")
-    # ans = input("Do you want to visualise the best solution? (y/n): ").lower()
-    # if ans == "y":
-    #     visualise(best, problem)
-    # else:
-    #     print("Exiting program...")
+        try:       
+            assert is_feasible(best_solution, problem)
+            assert cost(best_solution, problem) == best_cost
+
+            costs.append(best_cost)
+            runtimes.append(duration)
+            stats.append(alns.get_statistics())
+
+            if best_cost < all_time_best_cost:
+                all_time_best_cost = best_cost
+                all_time_best_solution = best_solution
+        except AssertionError:
+            print(f"{problem._filename} is infeasible. Run {i + 1} failed.")
+            if cost(best_solution, problem) != best_cost:
+                print("Cost mismatch!!!")
+                print("Cost: ", best_cost)
+                print("Calculated cost: ", cost(best_solution, problem))
+                print(best_solution)
+        
+    return all_time_best_solution, all_time_best_cost, costs, runtimes, stats
 
 
-def main():
-    # filename = "./src/instances/instance_testing.csv"
-    filename = "./src/instances/westermost_rough_testing.csv"
-    problem = Problem(filename)
-    random.seed(1)
+def main(args):
+    # If testing, set the seed
+    # seed = 1337
+    # random.seed(seed)
+
+    filename = args.file
+
 
     operators = [
         sim_rand_remov_greed_insrt_operator,
@@ -96,13 +100,39 @@ def main():
         rand_remov_greed_insrt_operator,
     ]
 
-    # initial = initial_solution(problem)
-    initial = random_solution(problem)
-    print(initial.routes.count(0))
-    print(len(initial.stations))
-    # run_single(initial, operators, problem, statistics=True)
-    run_consecutive(initial, operators, problem, statistics=True)
+    problem = Problem(filename)
+    initial = create_initial_solution(problem)
+    assert is_feasible(initial, problem)
+    print(f"Running {os.path.basename(filename)} for {args.num_runs} runs")
+    print("Cost of initial solution:")
+    print(f"{round(cost(initial, problem), 2)}")
+
+    with gp.Env(empty=True) as env:
+        env.setParam("OutputFlag", 0)
+        env.start()
+
+        match args.num_runs:
+            case 1:
+                print(f"Running {os.path.basename(filename)} for 1 run")
+                run_once(initial, operators, problem, env)
+            case 10:
+                all_time_best_solution, all_time_best_cost, costs, runtimes, stats = run_ten(
+                initial, operators, problem, env
+                )
+                print("Best found objective value:")
+                print(round(all_time_best_cost, 2))
+                print("Average objective value:")
+                print(round(mean(costs), 2))
+                print("Average runtime:")
+                print(round(mean(runtimes), 2))
+                print("Total runtime:")
+                print(round(sum(runtimes), 2))
+                print("\n")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("num_runs", type=int, help="Number of runs to perform")
+    parser.add_argument("file", type=str, help="Instance file to solve.")
+    args = parser.parse_args()
+    main(args)

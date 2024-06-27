@@ -2,7 +2,15 @@ from heuristic.problem import Problem
 from heuristic.solution import Solution
 import logging
 import gurobipy as gp
-from random import randint
+from random import randint, shuffle, choices 
+import os
+import csv
+
+from scipy.spatial.distance import cdist
+from sklearn.cluster import KMeans
+import numpy as np
+
+import pickle
 
 
 def is_feasible(solution: Solution, problem: Problem):
@@ -27,6 +35,7 @@ def is_feasible(solution: Solution, problem: Problem):
                         travel_time = problem.travel_times[
                             stations[tour_index], current_tour[j]
                         ]
+                        demand = 0.0
                     elif j == len(current_tour):
                         # From last node to station
                         distance = problem.distances[
@@ -35,6 +44,7 @@ def is_feasible(solution: Solution, problem: Problem):
                         travel_time = problem.travel_times[
                             stations[tour_index], current_tour[j - 1]
                         ]
+                        demand = problem.demands[current_tour[j - 1]]
                     else:
                         # From node to node
                         distance = problem.distances[
@@ -43,9 +53,9 @@ def is_feasible(solution: Solution, problem: Problem):
                         travel_time = problem.travel_times[
                             current_tour[j - 1], current_tour[j]
                         ]
-
+                        demand = problem.demands[current_tour[j - 1]]
                     charge -= distance * problem.consumption_rate
-                    duration += travel_time
+                    duration += travel_time + demand
                     if charge < 0 or charge > problem.charge_capacity:
                         return False
                     if duration > 8.0:
@@ -56,6 +66,8 @@ def is_feasible(solution: Solution, problem: Problem):
             tour_index += 1
 
     if tour_index > problem.num_vessels * problem.num_time_windows:
+        return False
+    if tour_index != len(stations):
         return False
     return True
 
@@ -337,8 +349,8 @@ def initialise_model_old(to_and_from_costs: list[list[float]], fixed_costs: list
     return m, x, y
 
 
-def initialise_model(num_tours: int, num_stations: int):
-    m = gp.Model("Optimal Station Assignment")
+def initialise_model(num_tours: int, num_stations: int, env):
+    m = gp.Model("Optimal Station Assignment", env)
     x = m.addVars(
         [(i, j) for i in range(num_tours) for j in range(num_stations)],
         vtype=gp.GRB.BINARY,
@@ -362,6 +374,7 @@ def initialise_model(num_tours: int, num_stations: int):
         gp.quicksum(x[i, j] for i in range(num_tours)) <= y[j] * num_tours
         for j in range(num_stations)
     )
+
     return m, x, y
 
 
@@ -382,8 +395,8 @@ def update_model(
     # Update objective function coefficients
     # for i, j in x.keys():
     #     x[i, j].obj = to_and_from_costs[i][j]
-    for j in y.keys():
-        y[j].obj = fixed_costs[j]
+    # for j in y.keys():
+    #     y[j].obj = fixed_costs[j]
 
     # Optimize the model with the new parameters
     m.optimize()
@@ -401,8 +414,12 @@ def get_station_assignment(
     x_values = model.getAttr("X", model.getVars())
 
     # Create a 2D matrix to store the values of x[i, j]
+    # assignment_matrix = [
+    #     [int(x_values[i * num_destinations + j]) for j in range(num_destinations)]
+    #     for i in range(num_sources)
+    # ]
     assignment_matrix = [
-        [int(x_values[i * num_destinations + j]) for j in range(num_destinations)]
+        [1 if x_values[i * num_destinations + j] > 0.5 else 0 for j in range(num_destinations)]
         for i in range(num_sources)
     ]
     # Get the assignment of stations to each tour
@@ -565,34 +582,43 @@ def feasible_inserts(
 
 
 def random_solution(problem: Problem) -> Solution:
-    unvisited = problem.map["Turbines"].copy()
-    routes = []
-    while len(unvisited) > 0:
-        tour_length = randint(1, len(unvisited))
-        tour = []
-        for _ in range(tour_length):
-            turbine = unvisited.pop(randint(0, len(unvisited) - 1))
-            tour.append(turbine)
-        routes += tour + [0]
-    num_tours = len([i for i, x in enumerate(routes) if x == 0])
-    stations = [
-        problem.map["Substations"][randint(0, len(problem.map["Substations"]) - 1)]
-        for _ in range(num_tours)
-    ]
-    try:
-        if num_tours > problem.num_vessels * problem.num_time_windows:
-            raise ValueError()
-    except ValueError as e:
-        print(f"Too many tours!")
-        print(
-            f"Num tours: {num_tours} > Num vessels: {problem.num_vessels} * Num time windows: {problem.num_time_windows}"
-        )
-        print(f"Route: {routes}")
-        print(f"Stations: {stations}")
-        return None
-    solution = Solution()
-    solution.routes = routes
-    solution.stations = stations
+    # max_tours = problem.num_vessels * problem.num_time_windows
+    max_tours = problem.num_turbines
+    nodes = problem.turbines.copy()
+    depots = problem.stations.copy()
+
+    solution = None
+
+    while True:
+        num_tours = randint(1, max_tours)
+        approx_size = len(nodes) // num_tours
+        remainder = len(nodes) % num_tours
+
+        shuffle(nodes)
+        tours = []
+        start_index = 0
+
+        for i in range(num_tours):
+            if i < remainder:
+                end_index = start_index + approx_size + 1
+            else:
+                end_index = start_index + approx_size
+            tours.append(nodes[start_index:end_index])
+            start_index = end_index
+
+    
+        stations = choices(depots, k=num_tours)
+        routes = []
+        for tour in tours:
+            tour.append(0)
+            routes.extend(tour)
+
+        temporary = Solution()
+        temporary.routes = routes
+        temporary.stations = stations
+        if is_feasible(temporary, problem):
+            solution = temporary
+            break
     return solution
 
 
@@ -712,3 +738,59 @@ def initial_solution(problem: Problem) -> Solution:
             solution.stations.append(station)
 
     return solution
+
+  
+def save_solution(
+    path: str,
+    filename: str,
+    objective_value: float,
+    avg_objective_value: float,
+    avg_runtime: float,
+    total_runtime: float,
+    solution: Solution,
+    initial: Solution,
+):
+    with open(path, "w") as f:
+        f.write(f"{filename[:-4]}\n")
+        f.write("\n")
+        f.write(f"Objective value:\n")
+        f.write(f"{objective_value}\n")
+        f.write(f"Avg. Objective value:\n")
+        f.write(f"{avg_objective_value}\n")
+        f.write(f"Avg. Runtime:\n")
+        f.write(f"{avg_runtime:.2f} s\n")
+        f.write(f"Total runtime:\n")
+        f.write(f"{total_runtime:.2f} s\n")
+        f.write("\n")
+        f.write("Best found solution:\n")
+        f.write(f"Routes:\n")
+        f.write(f"{solution.routes}\n")
+        f.write(f"Stations:\n")
+        f.write(f"{solution.stations}\n")
+        f.write("\n")
+        f.write(f"Initial solution:\n")
+        f.write(f"Routes:\n")
+        f.write(f"{initial.routes}\n")
+        f.write(f"Stations:\n")
+        f.write(f"{initial.stations}\n")
+
+
+def save_result(
+    path: str,
+    filename: str,
+    objective_value: float,
+    avg_objective_value: float,
+    avg_runtime: float,
+    total_runtime: float,
+) -> None:
+    with open(path, "a", newline="") as csvfile:
+        writer = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+        writer.writerow([filename[:-4], objective_value, avg_objective_value, avg_runtime, total_runtime])
+
+
+def save_statistics(
+        path: str,
+        statistics: dict[str, any],
+) -> None:
+    with open(path, "wb") as pickle_file:
+        pickle.dump(statistics, pickle_file)
