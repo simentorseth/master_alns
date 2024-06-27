@@ -10,6 +10,8 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 import numpy as np
 
+import pickle
+
 
 def is_feasible(solution: Solution, problem: Problem):
     routes = solution.routes
@@ -741,45 +743,55 @@ def initial_solution(problem: Problem) -> Solution:
 
 def save_solution(
     path: str,
+    filename: str,
     objective_value: float,
     avg_objective_value: float,
     avg_runtime: float,
+    total_runtime: float,
     solution: Solution,
     initial: Solution,
-    problem: Problem,
 ):
     with open(path, "w") as f:
-        f.write(f"{os.path.basename(problem._filename)[:-4]}\n")
-        f.write(f"Objective value: {objective_value:.2f}\n")
-        f.write(f"Avg. Objective value: {avg_objective_value:.2f}\n")
-        f.write(f"Avg. Runtime: {avg_runtime:.2f} s\n")
-        f.write(f"Tours:\n")
+        f.write(f"{filename[:-4]}\n")
+        f.write("\n")
+        f.write(f"Objective value:\n")
+        f.write(f"{objective_value}\n")
+        f.write(f"Avg. Objective value:\n")
+        f.write(f"{avg_objective_value}\n")
+        f.write(f"Avg. Runtime:\n")
+        f.write(f"{avg_runtime:.2f} s\n")
+        f.write(f"Total runtime:\n")
+        f.write(f"{total_runtime:.2f} s\n")
+        f.write("\n")
+        f.write("Best found solution:\n")
+        f.write(f"Routes:\n")
         f.write(f"{solution.routes}\n")
         f.write(f"Stations:\n")
         f.write(f"{solution.stations}\n")
+        f.write("\n")
         f.write(f"Initial solution:\n")
-        f.write(f"Routes: {initial.routes}\n")
-        f.write(f"Stations: {initial.stations}\n")
+        f.write(f"Routes:\n")
+        f.write(f"{initial.routes}\n")
+        f.write(f"Stations:\n")
+        f.write(f"{initial.stations}\n")
 
 
-def save_run(
+def save_result(
     path: str,
+    filename: str,
     objective_value: float,
     avg_objective_value: float,
     avg_runtime: float,
-    problem: Problem,
-    num_stations: int=0,
-):
+    total_runtime: float,
+) -> None:
     with open(path, "a", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-        if num_stations == 0:
-            writer.writerow(
-                [problem._filename, objective_value, avg_objective_value, avg_runtime]
-            )
-        else:
-            writer.writerow(
-                [problem._filename, num_stations, objective_value, avg_objective_value, avg_runtime]
-            )
-        # writer.writerow(
-        #     [problem._filename, objective_value, avg_objective_value, avg_runtime]
-        # )
+        writer.writerow([filename[:-4], objective_value, avg_objective_value, avg_runtime, total_runtime])
+
+
+def save_statistics(
+        path: str,
+        statistics: dict[str, any],
+) -> None:
+    with open(path, "wb") as pickle_file:
+        pickle.dump(statistics, pickle_file)
