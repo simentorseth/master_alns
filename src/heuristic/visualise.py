@@ -79,7 +79,7 @@ def visualise(solution: Solution, problem: Problem):
     ax.tick_params(
         left=True, bottom=True, labelleft=True, labelbottom=True, labelsize=8
     )
-    
+
     if problem.is_haversine:
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")

@@ -1,4 +1,5 @@
 from heuristic.alns import Alns
+
 from heuristic.problem import Problem
 from heuristic.solution import Solution
 from heuristic.initial import create_initial_solution
@@ -91,6 +92,7 @@ def main(args):
     # random.seed(seed)
 
     filename = args.file
+
 
     operators = [
         sim_rand_remov_greed_insrt_operator,

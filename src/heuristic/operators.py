@@ -299,14 +299,18 @@ def greed_rand_remov_greed_insrt_operator(
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
+
     assert new_solution.routes.count(0) == len(new_solution.stations)
+
     return new_solution
 
 
 def sim_rand_remov_greed_insrt_operator(
     solution: Solution, num_to_remove: int, problem: Problem
 ) -> Solution:
+
     new_solution = copy(solution)
+
     assert num_to_remove >= 2
 
     # removal_costs = [0.0 for _ in range(problem.num_turbines)]
@@ -377,14 +381,18 @@ def sim_rand_remov_greed_insrt_operator(
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
+
     assert new_solution.routes.count(0) == len(new_solution.stations)
+  
     return new_solution
 
 
 def escape(solution: Solution, num_remove: int, problem: Problem) -> Solution:
+
     new_solution = copy(solution)
 
     removed, tours = random_removal(new_solution, num_remove, problem)
+
     for node in removed:
         inserted = False
         for i, current_tour in enumerate(tours):
@@ -412,5 +420,7 @@ def escape(solution: Solution, num_remove: int, problem: Problem) -> Solution:
             tours[i].append(0)
 
     new_solution.routes = [node for tour in tours if tour for node in tour]
+    
     assert new_solution.routes.count(0) == len(new_solution.stations)
+
     return new_solution

@@ -84,7 +84,7 @@ class Alns:
                 q = randint(2, self._q_max)
             else:
                 q = randint(1, self._q_max)  # number of turbines to remove
-            
+
             candidate = self._operators[operator](self._current, q, self._problem)
             
             if candidate.routes.count(0) != len(candidate.stations):
@@ -164,21 +164,20 @@ class Alns:
     def select_operator(self) -> int | None:
         random_num = random()
         return next(
-            (i for i, x in enumerate(self._probabilities) if x > random_num), None
-        )
+            (i for i, x in enumerate(self._probabilities) if x > random_num), None)
 
     def get_best(self) -> tuple[Solution, int]:
         return self._best, self._best_cost
 
     def get_optimal_stations(self, solution: Solution, problem: Problem):
         to_and_from_costs = get_to_and_from_costs(solution, problem)
+
         assert len(to_and_from_costs) == len(solution.stations)
         self._model = update_model(
             self._model, self.x, self.y, to_and_from_costs, problem.fixed_costs
         )
         assignment = get_station_assignment(
             self._model, len(to_and_from_costs), problem.num_stations, problem
-        )
 
         new_solution = copy(solution)
         new_solution.stations = assignment

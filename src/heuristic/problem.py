@@ -264,6 +264,7 @@ class Problem:
         return lines[1:]  # skip header
 
     def _get_map(self) -> dict[int, list[int]]:
+
         seen = set()
         turbines = self._get_locations("Turbine")
         stations = self._get_locations("Substation")

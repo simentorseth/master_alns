@@ -619,7 +619,6 @@ def random_solution(problem: Problem) -> Solution:
         if is_feasible(temporary, problem):
             solution = temporary
             break
-
     return solution
 
 
@@ -740,7 +739,7 @@ def initial_solution(problem: Problem) -> Solution:
 
     return solution
 
-
+  
 def save_solution(
     path: str,
     filename: str,
