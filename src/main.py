@@ -10,8 +10,9 @@ from heuristic.operators import (
 from heuristic.utils import (
     is_feasible,
     cost,
-    save_run,
+    save_result,
     save_solution,
+    save_statistics,
 )
 
 import gurobipy as gp
@@ -29,7 +30,6 @@ def run_once(solution: Solution, operators: list[callable], problem: Problem, en
     best_solution, best_cost = alns.run()
     end_time = time.perf_counter()
     duration = end_time - start_time
-    print(f"Last update: {alns._iter_improve}")
 
     try:
         assert is_feasible(best_solution, problem)
@@ -54,6 +54,7 @@ def run_ten(solution: Solution, operators: list[callable], problem: Problem, env
     all_time_best_cost = float("inf")
     costs = []
     runtimes = []
+    stats = []
 
     for i in range(10):
         alns = Alns(problem, operators, solution, env)
@@ -68,6 +69,7 @@ def run_ten(solution: Solution, operators: list[callable], problem: Problem, env
 
             costs.append(best_cost)
             runtimes.append(duration)
+            stats.append(alns.get_statistics())
 
             if best_cost < all_time_best_cost:
                 all_time_best_cost = best_cost
@@ -80,13 +82,13 @@ def run_ten(solution: Solution, operators: list[callable], problem: Problem, env
                 print("Calculated cost: ", cost(best_solution, problem))
                 print(best_solution)
         
-    return all_time_best_solution, all_time_best_cost, costs, runtimes
+    return all_time_best_solution, all_time_best_cost, costs, runtimes, stats
 
 
 def main(args):
-     # If testing, set the seed
-    seed = 1337
-    random.seed(seed)
+    # If testing, set the seed
+    # seed = 1337
+    # random.seed(seed)
 
     filename = args.file
 
@@ -99,6 +101,7 @@ def main(args):
     problem = Problem(filename)
     initial = create_initial_solution(problem)
     assert is_feasible(initial, problem)
+    print(f"Running {os.path.basename(filename)} for {args.num_runs} runs")
     print("Cost of initial solution:")
     print(f"{round(cost(initial, problem), 2)}")
 
@@ -111,21 +114,18 @@ def main(args):
                 print(f"Running {os.path.basename(filename)} for 1 run")
                 run_once(initial, operators, problem, env)
             case 10:
-                print(f"Running {os.path.basename(filename)} for 10 runs")
-                _, all_time_best_cost, costs, runtimes = run_ten(
+                all_time_best_solution, all_time_best_cost, costs, runtimes, stats = run_ten(
                 initial, operators, problem, env
                 )
-                print("All time best objective value:")
+                print("Best found objective value:")
                 print(round(all_time_best_cost, 2))
                 print("Average objective value:")
                 print(round(mean(costs), 2))
                 print("Average runtime:")
                 print(round(mean(runtimes), 2))
+                print("Total runtime:")
+                print(round(sum(runtimes), 2))
                 print("\n")
-
-
-
-
 
 
 if __name__ == "__main__":
